@@ -1,7 +1,11 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
+
+// --- NEW IMPORTS (Corrected) ---
+// This line is fixed:
+import { initializeAuth, getReactNativePersistence } from 'firebase/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Your Firebase project configuration
 const firebaseConfig = {
@@ -16,7 +20,12 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Export Firebase services
-export const auth = getAuth(app);
+// --- MODIFIED AUTH INITIALIZATION ---
+// This explicitly tells Firebase Auth to use AsyncStorage for persistence
+export const auth = initializeAuth(app, {
+  persistence: getReactNativePersistence(AsyncStorage)
+});
+
+// Export other Firebase services
 export const db = getFirestore(app);
 export const storage = getStorage(app);
