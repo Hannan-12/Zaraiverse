@@ -25,8 +25,8 @@ import {
   deleteDoc,
   doc,
   Timestamp,
-  getDocs,
-  writeBatch,
+  getDocs,  // ✅ Re-added for cleanup
+  writeBatch, // ✅ Re-added for cleanup
 } from 'firebase/firestore';
 import * as Notifications from 'expo-notifications';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -66,6 +66,7 @@ export default function TaskRemindersScreen() {
     // Request permissions for notifications
     requestNotificationPermissions();
 
+    // --- ✅ RE-ADDED CALL TO cleanupOldTasks() ---
     // Clean up old tasks first
     cleanupOldTasks(user.uid);
 
@@ -115,14 +116,14 @@ export default function TaskRemindersScreen() {
     }
   }
 
-  // --- 3. Auto-Delete Logic ---
+  // --- 3. ✅ RE-ADDED Auto-Delete Logic ---
   const cleanupOldTasks = async (userId) => {
     try {
       const now = Timestamp.now();
       const q = query(
         collection(db, 'tasks'),
         where('userId', '==', userId),
-        where('taskTime', '<', now)
+        where('taskTime', '<', now) // This query needs the index
       );
 
       const querySnapshot = await getDocs(q);
@@ -136,6 +137,8 @@ export default function TaskRemindersScreen() {
       console.log(`Cleaned up ${querySnapshot.size} old tasks.`);
     } catch (error) {
       console.error('Error cleaning up old tasks: ', error);
+      // We don't show an alert here, as it's a background task.
+      // The console log is enough for debugging.
     }
   };
 
@@ -154,7 +157,11 @@ export default function TaskRemindersScreen() {
           body: task.title,
           data: { taskId: taskId },
         },
-        trigger: task.taskTime,
+        // --- FIX: Use the object format for the trigger ---
+        trigger: {
+          type: 'date',
+          date: task.taskTime,
+        },
       });
       return notificationId;
     } catch (error) {
@@ -304,38 +311,43 @@ export default function TaskRemindersScreen() {
   };
 
   // --- RENDER FUNCTION for each task item ---
-  const renderTaskItem = ({ item }) => (
-    <View style={styles.taskCard}>
-      <TouchableOpacity
-        onPress={() => toggleTaskCompletion(item)}
-        style={[
-          styles.checkbox,
-          item.completed && styles.checkboxCompleted,
-        ]}>
-        {item.completed && (
-          <Ionicons name="checkmark" size={20} color="#FFFFFF" />
-        )}
-      </TouchableOpacity>
-      <View style={styles.taskTextContainer}>
-        <Text
+  const renderTaskItem = ({ item }) => {
+    // We no longer need the 'isPast' check because
+    // the cleanup function will remove them automatically.
+    
+    return (
+      <View style={styles.taskCard}>
+        <TouchableOpacity
+          onPress={() => toggleTaskCompletion(item)}
           style={[
-            styles.taskTitle,
-            item.completed && styles.taskTitleCompleted,
+            styles.checkbox,
+            item.completed && styles.checkboxCompleted,
           ]}>
-          {item.title}
-        </Text>
-        <Text style={styles.taskTime}>
-          {format(item.taskTime, 'MMM d, yyyy @ h:mm a')}
-        </Text>
+          {item.completed && (
+            <Ionicons name="checkmark" size={20} color="#FFFFFF" />
+          )}
+        </TouchableOpacity>
+        <View style={styles.taskTextContainer}>
+          <Text
+            style={[
+              styles.taskTitle,
+              item.completed && styles.taskTitleCompleted,
+            ]}>
+            {item.title}
+          </Text>
+          <Text style={styles.taskTime}>
+            {format(item.taskTime, 'MMM d, yyyy @ h:mm a')}
+          </Text>
+        </View>
+        <TouchableOpacity onPress={() => handleOpenModal(item)}>
+          <Ionicons name="pencil" size={20} color="#666" style={{ marginRight: 15 }} />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => handleDeleteTask(item)}>
+          <Ionicons name="trash-bin-outline" size={20} color="#EF5350" />
+        </TouchableOpacity>
       </View>
-      <TouchableOpacity onPress={() => handleOpenModal(item)}>
-        <Ionicons name="pencil" size={20} color="#666" style={{ marginRight: 15 }} />
-      </TouchableOpacity>
-      <TouchableOpacity onPress={() => handleDeleteTask(item)}>
-        <Ionicons name="trash-bin-outline" size={20} color="#EF5350" />
-      </TouchableOpacity>
-    </View>
-  );
+    );
+  };
 
   // --- Loading Indicator ---
   if (isLoading) {
@@ -375,6 +387,7 @@ export default function TaskRemindersScreen() {
             <Text style={styles.modalTitle}>
               {editingTask ? 'Edit Task' : 'Add New Task'}
             </Text>
+             {/* --- ✅ FIX: Changed </Key> to </Text> --- */}
             <TextInput
               style={styles.input}
               placeholder="e.g., Water the crops"
@@ -419,7 +432,8 @@ export default function TaskRemindersScreen() {
             </View>
           </View>
         </View>
-      </Modal>
+      </Modal> 
+      {/* --- ✅ FIX: Correct closing tag --- */}
 
       {/* --- Floating Action Button to Add New Task --- */}
       <TouchableOpacity style={styles.fab} onPress={() => handleOpenModal()}>
@@ -479,6 +493,7 @@ const styles = StyleSheet.create({
   taskTitle: { fontSize: 16, fontWeight: '600', color: '#333' },
   taskTitleCompleted: { textDecorationLine: 'line-through', color: '#aaa' },
   taskTime: { fontSize: 14, color: '#888', marginTop: 4 },
+  // --- Styles for past tasks removed as they are no longer needed ---
   fab: {
     position: 'absolute',
     right: 20,

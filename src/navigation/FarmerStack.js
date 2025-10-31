@@ -10,6 +10,8 @@ import TaskRemindersScreen from '../screens/farmer/TaskRemindersScreen';
 import OrdersScreen from '../screens/farmer/OrdersScreen';
 import AnalyticsScreen from '../screens/farmer/AnalyticsScreen';
 import CartScreen from '../screens/farmer/CartScreen';
+// --- ✅ NEW: Import BlogDetailsScreen ---
+import BlogDetailsScreen from '../screens/farmer/BlogDetailsScreen';
 
 
 const Stack = createNativeStackNavigator();
@@ -86,7 +88,16 @@ export default function FarmerStack() {
         }}
       />
 
-     
+      {/* --- ✅ NEW: Add BlogDetailsScreen to the stack --- */}
+      <Stack.Screen
+        name="BlogDetails"
+        component={BlogDetailsScreen}
+        options={{
+          title: 'Blog Article', // The screen itself will override this
+          headerStyle: { backgroundColor: '#2e7d32' },
+          headerTintColor: '#fff',
+        }}
+      />
       
     </Stack.Navigator>
   );
