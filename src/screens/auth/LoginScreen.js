@@ -37,12 +37,12 @@ export default function LoginScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      // ...
+      {/* ... */}
       <Image 
         source={require('../../assets/ZaraiVerse.png')}
         style={styles.logo} 
       />
-// ...
+      {/* ... */}
 
       <Text style={styles.title}>ZaraiVerse</Text>
       

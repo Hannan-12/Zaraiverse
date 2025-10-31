@@ -20,8 +20,6 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// --- MODIFIED AUTH INITIALIZATION ---
-// This explicitly tells Firebase Auth to use AsyncStorage for persistence
 export const auth = initializeAuth(app, {
   persistence: getReactNativePersistence(AsyncStorage)
 });

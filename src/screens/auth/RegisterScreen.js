@@ -51,12 +51,12 @@ export default function RegisterScreen({ navigation }) {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-    // ...
+      {/* ... */}
       <Image 
         source={require('../../assets/ZaraiVerse.png')}
         style={styles.logo} 
       />
-// ...
+      {/* ... */}
 
       <Text style={styles.title}>Create Account</Text>
       
