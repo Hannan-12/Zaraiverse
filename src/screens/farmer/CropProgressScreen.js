@@ -27,7 +27,24 @@ import {
 import { format } from 'date-fns';
 
 export default function CropProgressScreen({ route, navigation }) {
-  const { crop } = route.params; // Get the full crop object
+  // --- ✅ FIX: Safely destructure crop with a fallback ---
+  const { crop } = route.params || {}; 
+
+  // --- CRASH PREVENTION: Handle case where crop is still undefined ---
+  if (!crop) {
+    return (
+      <View style={styles.centeredContainer}>
+        <Text style={styles.errorHeader}>Crop Not Found</Text>
+        <Text style={styles.errorMessage}>
+          The crop details could not be loaded. Please return to "My Crops".
+        </Text>
+        <TouchableOpacity style={styles.goBackButton} onPress={() => navigation.goBack()}>
+          <Text style={styles.goBackText}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   const [progress, setProgress] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
@@ -46,6 +63,8 @@ export default function CropProgressScreen({ route, navigation }) {
 
   // Listen for progress updates
   useEffect(() => {
+    // Note: This query uses 'orderBy' and 'onSnapshot', which usually requires an index.
+    // Check Firebase console if fetching fails here.
     const q = query(progressColRef, orderBy('date', 'desc'));
 
     const unsubscribe = onSnapshot(
@@ -65,8 +84,6 @@ export default function CropProgressScreen({ route, navigation }) {
       },
       (error) => {
         console.error('Error fetching progress: ', error);
-        // This might fail if you need a single-field index on 'date'.
-        // Firebase console error will provide a link to create it.
         Alert.alert('Error', 'Could not load progress data.');
         setLoading(false);
       }
@@ -229,6 +246,38 @@ export default function CropProgressScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   outerContainer: { flex: 1, backgroundColor: '#F8F9FA' },
   centered: { marginTop: 50 },
+  // --- NEW STYLES for the fallback screen ---
+  centeredContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: '#F8F9FA',
+  },
+  errorHeader: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#d9534f',
+    marginBottom: 10,
+  },
+  errorMessage: {
+    fontSize: 16,
+    color: '#555',
+    textAlign: 'center',
+    marginBottom: 30,
+  },
+  goBackButton: {
+    backgroundColor: '#2e7d32',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  goBackText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  // --- End NEW STYLES ---
   listContainer: { padding: 20 },
   harvestButton: {
     flexDirection: 'row',

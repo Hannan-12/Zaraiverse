@@ -25,14 +25,15 @@ import {
   deleteDoc,
   doc,
   Timestamp,
-  getDocs,  // ✅ Re-added for cleanup
-  writeBatch, // ✅ Re-added for cleanup
+  getDocs,
+  writeBatch,
+  orderBy, // Retain orderBy for fetching from Firestore
 } from 'firebase/firestore';
 import * as Notifications from 'expo-notifications';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { format } from 'date-fns'; // Using date-fns for nice formatting
 
-// Configure notification handler
+// Configure notification handler (Essential for local notifications in the foreground)
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
@@ -66,14 +67,15 @@ export default function TaskRemindersScreen() {
     // Request permissions for notifications
     requestNotificationPermissions();
 
-    // --- ✅ RE-ADDED CALL TO cleanupOldTasks() ---
     // Clean up old tasks first
     cleanupOldTasks(user.uid);
 
     // Set up the real-time listener for tasks
+    // Use orderBy here for predictable sorting.
     const q = query(
       collection(db, 'tasks'),
-      where('userId', '==', user.uid)
+      where('userId', '==', user.uid),
+      orderBy('taskTime', 'desc') 
     );
 
     const unsubscribe = onSnapshot(
@@ -89,7 +91,7 @@ export default function TaskRemindersScreen() {
             taskTime: data.taskTime.toDate(),
           });
         });
-        // Sort by time, newest first
+        // Sort by time, newest first (optional, but good practice)
         tasksData.sort((a, b) => b.taskTime.getTime() - a.taskTime.getTime());
         setTasks(tasksData);
         setIsLoading(false);
@@ -106,29 +108,49 @@ export default function TaskRemindersScreen() {
   }, [user]); // Re-run if user changes
 
   // --- 2. Notification Permission Handler (Minimal code for local reminders) ---
+  // NO push token logic here. Only local permissions.
   async function requestNotificationPermissions() {
-    const { status } = await Notifications.requestPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert(
-        'Permission Required',
-        'Please enable notifications to receive task reminders.'
-      );
+    try {
+      // 1. Request basic notification permission
+      const { status } = await Notifications.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permission Required',
+          'Please enable notifications to receive task reminders.'
+        );
+      }
+
+      // 2. Set Android Channel (needed for local notifications on recent Android versions)
+      if (Platform.OS === 'android') {
+        await Notifications.setNotificationChannelAsync('default', {
+          name: 'Default Channel',
+          importance: Notifications.AndroidImportance.MAX,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: '#FF231F7C',
+        });
+      }
+      
+      // 3. Clear all old scheduled local notifications (optional cleanup)
+      await Notifications.cancelAllScheduledNotificationsAsync();
+
+    } catch (error) {
+      console.error('Error handling notification permissions:', error);
     }
-    // All remote push token logic has been safely removed from this version.
   }
 
-  // --- 3. ✅ RE-ADDED Auto-Delete Logic ---
+  // --- 3. Auto-Delete Logic ---
   const cleanupOldTasks = async (userId) => {
     try {
       const now = Timestamp.now();
       const q = query(
         collection(db, 'tasks'),
         where('userId', '==', userId),
-        where('taskTime', '<', now) // This query needs the index
+        where('taskTime', '<', now)
       );
 
-      const querySnapshot = await getDocs(q);
-      if (querySnapshot.empty) return; // Nothing to delete
+      // Use getDocs instead of onSnapshot for a single cleanup operation
+      const querySnapshot = await getDocs(q); 
+      if (querySnapshot.empty) return;
 
       const batch = writeBatch(db);
       querySnapshot.forEach((doc) => {
@@ -138,8 +160,6 @@ export default function TaskRemindersScreen() {
       console.log(`Cleaned up ${querySnapshot.size} old tasks.`);
     } catch (error) {
       console.error('Error cleaning up old tasks: ', error);
-      // We don't show an alert here, as it's a background task.
-      // The console log is enough for debugging.
     }
   };
 
@@ -158,10 +178,9 @@ export default function TaskRemindersScreen() {
           body: task.title,
           data: { taskId: taskId },
         },
-        // --- FIX: Use the object format for the trigger ---
         trigger: {
-          type: 'date',
-          date: task.taskTime,
+          // Use the object format for the date trigger
+          date: task.taskTime, 
         },
       });
       return notificationId;
@@ -225,7 +244,9 @@ export default function TaskRemindersScreen() {
       if (editingTask) {
         // --- UPDATE ---
         // Cancel previous notification before updating
-        await cancelNotification(editingTask.notificationId);
+        if (editingTask.notificationId) {
+           await cancelNotification(editingTask.notificationId);
+        }
 
         const notificationId = await scheduleNotification(
           { title: taskText, taskTime: taskTime },
@@ -313,9 +334,6 @@ export default function TaskRemindersScreen() {
 
   // --- RENDER FUNCTION for each task item ---
   const renderTaskItem = ({ item }) => {
-    // We no longer need the 'isPast' check because
-    // the cleanup function will remove them automatically.
-    
     return (
       <View style={styles.taskCard}>
         <TouchableOpacity
@@ -388,7 +406,6 @@ export default function TaskRemindersScreen() {
             <Text style={styles.modalTitle}>
               {editingTask ? 'Edit Task' : 'Add New Task'}
             </Text>
-             {/* --- ✅ FIX: Changed </Key> to </Text> --- */}
             <TextInput
               style={styles.input}
               placeholder="e.g., Water the crops"
@@ -397,7 +414,7 @@ export default function TaskRemindersScreen() {
               autoFocus={true}
             />
 
-            {/* --- NEW Time Picker Button --- */}
+            {/* --- Time Picker Button --- */}
             <TouchableOpacity
               style={styles.timePickerButton}
               onPress={() => setShowTimePicker(true)}>
@@ -407,7 +424,7 @@ export default function TaskRemindersScreen() {
               </Text>
             </TouchableOpacity>
 
-            {/* --- NEW Time Picker Component --- */}
+            {/* --- Time Picker Component --- */}
             {showTimePicker && (
               <DateTimePicker
                 testID="dateTimePicker"
@@ -433,8 +450,7 @@ export default function TaskRemindersScreen() {
             </View>
           </View>
         </View>
-      </Modal> 
-      {/* --- ✅ FIX: Correct closing tag --- */}
+      </Modal>
 
       {/* --- Floating Action Button to Add New Task --- */}
       <TouchableOpacity style={styles.fab} onPress={() => handleOpenModal()}>
@@ -494,7 +510,6 @@ const styles = StyleSheet.create({
   taskTitle: { fontSize: 16, fontWeight: '600', color: '#333' },
   taskTitleCompleted: { textDecorationLine: 'line-through', color: '#aaa' },
   taskTime: { fontSize: 14, color: '#888', marginTop: 4 },
-  // --- Styles for past tasks removed as they are no longer needed ---
   fab: {
     position: 'absolute',
     right: 20,
