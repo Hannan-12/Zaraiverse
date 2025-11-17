@@ -30,7 +30,7 @@ export default function ProfileScreen() {
     }
   };
 
-  // --- IMAGE PICKER FUNCTION ---
+  // --- IMAGE PICKER FUNCTION (UPDATED) ---
   const handlePickImage = async () => {
     // Request permission
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -39,19 +39,22 @@ export default function ProfileScreen() {
       return;
     }
 
-    // Launch image picker
+    // Launch image picker, using ImagePicker.MediaType
     const pickerResult = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ImagePicker.MediaType.Images, // ✅ Updated from MediaOptions (fixes warning)
       allowsEditing: true,
       aspect: [1, 1], // Square aspect ratio for profile pictures
       quality: 0.5,
     });
 
-    if (!pickerResult.canceled) {
-      const uri = pickerResult.assets[0].uri;
-      setImageUri(uri); // Show the new image immediately
-      uploadImage(uri); // Start uploading to Firebase
+    // Check for cancellation first (to prevent dismiss errors)
+    if (pickerResult.canceled || !pickerResult.assets || pickerResult.assets.length === 0) {
+      return; // Stop processing if canceled or no assets returned
     }
+
+    const uri = pickerResult.assets[0].uri;
+    setImageUri(uri); // Show the new image immediately
+    uploadImage(uri); // Start uploading to Firebase
   };
 
   // --- IMAGE UPLOAD FUNCTION ---
