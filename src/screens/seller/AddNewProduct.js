@@ -37,25 +37,47 @@ export default function AddNewProduct({ navigation }) {
       return 'https://placehold.co/600x400/2E8B57/FFFFFF?text=Product+Image';
   };
 
-  // --- MODIFIED: Function to pick an image ---
+  // --- MODIFIED: Function to pick an image (Fixed constant reference) ---
   const handlePickImage = async () => {
-    // Request permission
+    // 1. Request permission
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    
     if (permissionResult.granted === false) {
       Alert.alert("Permission Required", "You need to allow access to your photos to upload an image.");
+      console.log("Image picker permission denied.");
       return;
     }
+    
+    console.log("Image picker permission granted.");
 
-    // Launch image picker
-    const pickerResult = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaType.Images, // Corrected from deprecated type
-      allowsEditing: true,
-      aspect: [1, 1], // Square aspect ratio
-      quality: 0.7, // Compress image
-    });
+    // 2. Launch image picker
+    try {
+        const pickerResult = await ImagePicker.launchImageLibraryAsync({
+            // ✅ FIX: Changed to ImagePicker.MediaTypeOptions.Images
+            mediaTypes: ImagePicker.MediaTypeOptions.Images, 
+            allowsEditing: true,
+            aspect: [1, 1], // Square aspect ratio
+            quality: 0.7, // Compress image
+        });
 
-    if (!pickerResult.canceled) {
-      setImageUri(pickerResult.assets[0].uri);
+        // 3. Robustly check for success and extract URI
+        if (pickerResult.canceled) {
+            console.log("Image picker was cancelled.");
+            return;
+        }
+
+        if (pickerResult.assets && pickerResult.assets.length > 0) {
+            const uri = pickerResult.assets[0].uri;
+            console.log("Image URI successfully selected:", uri);
+            setImageUri(uri);
+        } else {
+            console.error("Image picker finished, but no assets were returned. Check pickerResult object in console.");
+            Alert.alert("Error", "Could not select image. Try again.");
+        }
+    } catch (error) {
+        // This is where the original TypeError was caught.
+        console.error("Error during image picking:", error);
+        Alert.alert("Error", "An unexpected error occurred during image selection. Check console for details.");
     }
   };
 
@@ -68,7 +90,7 @@ export default function AddNewProduct({ navigation }) {
       return;
     }
 
-    // --- NEW: Check if an image is selected is relaxed, but we'll use placeholder if true ---
+    // --- Check if an image is selected is relaxed, but we'll use placeholder if true ---
     if (!imageUri) {
       Alert.alert('Missing Image', 'Please pick an image for the product.');
       return;
