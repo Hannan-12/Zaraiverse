@@ -105,7 +105,7 @@ export default function TaskRemindersScreen() {
     return () => unsubscribe();
   }, [user]); // Re-run if user changes
 
-  // --- 2. Notification Permission Handler ---
+  // --- 2. Notification Permission Handler (Minimal code for local reminders) ---
   async function requestNotificationPermissions() {
     const { status } = await Notifications.requestPermissionsAsync();
     if (status !== 'granted') {
@@ -114,6 +114,7 @@ export default function TaskRemindersScreen() {
         'Please enable notifications to receive task reminders.'
       );
     }
+    // All remote push token logic has been safely removed from this version.
   }
 
   // --- 3. ✅ RE-ADDED Auto-Delete Logic ---
@@ -142,7 +143,7 @@ export default function TaskRemindersScreen() {
     }
   };
 
-  // --- 4. Notification Scheduling Logic ---
+  // --- 4. Notification Scheduling Logic (LOCAL ONLY) ---
   const scheduleNotification = async (task, taskId) => {
     // Ensure time is in the future
     if (task.taskTime.getTime() <= new Date().getTime()) {
