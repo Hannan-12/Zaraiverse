@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "ZaraiVerse",
+    "slug": "zaraiverse",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./src/assets/ZaraiVerse.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./src/assets/ZaraiVerse.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.hannan.zaraiverse",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "ZaraiVerse needs access to your photo library to select product and profile images.",
+        "NSCameraUsageDescription": "ZaraiVerse needs access to your camera to take a new photo."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./src/assets/ZaraiVerse.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.hannan.zaraiverse",
+      "permissions": [
+        "READ_EXTERNAL_STORAGE",
+        "CAMERA"
+      ]
+    },
+    "web": {
+      "favicon": "./src/assets/ZaraiVerse.png"
+    }
+  }
+}

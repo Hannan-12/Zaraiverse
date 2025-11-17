@@ -2,24 +2,24 @@
 import React, { useContext, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
+// Removed: import * as ImagePicker from 'expo-image-picker';
 import { auth, db } from '../../services/firebase'; // Assuming you export db from firebase
 import { signOut } from 'firebase/auth';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { doc, updateDoc } from 'firebase/firestore';
-import { AuthContext } from '../../contexts/AuthContext';
+// Removed: import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+// Removed: import { doc, updateDoc } from 'firebase/firestore';
+import { AuthContext } from '../../contexts/AuthContext'; //
 
 export default function ProfileScreen() {
   const { user } = useContext(AuthContext);
-  // Initialize image state with user's existing photoURL
-  const [imageUri, setImageUri] = useState(user?.photoURL || null);
+  // Initialize image state to null as photoURL may not be set and we aren't loading it
+  const [imageUri, setImageUri] = useState(null); // <-- CHANGED: Default to null
 
   if (!user) {
     // This is a fallback, in case the screen renders before user is loaded
     return null; 
   }
 
-  // --- LOGOUT FUNCTION ---
+  // --- LOGOUT FUNCTION (Unchanged) ---
   const handleLogout = async () => {
     try {
       await signOut(auth);
@@ -30,80 +30,28 @@ export default function ProfileScreen() {
     }
   };
 
-  // --- IMAGE PICKER FUNCTION (UPDATED) ---
+  // --- MODIFIED: IMAGE PICKER FUNCTION (Now shows a disabled message) ---
   const handlePickImage = async () => {
-    // Request permission
-    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (permissionResult.granted === false) {
-      Alert.alert("Permission Required", "You need to allow access to your photos to upload an image.");
-      return;
-    }
-
-    // Launch image picker, using ImagePicker.MediaType
-    const pickerResult = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaType.Images, // ✅ Updated from MediaOptions (fixes warning)
-      allowsEditing: true,
-      aspect: [1, 1], // Square aspect ratio for profile pictures
-      quality: 0.5,
-    });
-
-    // Check for cancellation first (to prevent dismiss errors)
-    if (pickerResult.canceled || !pickerResult.assets || pickerResult.assets.length === 0) {
-      return; // Stop processing if canceled or no assets returned
-    }
-
-    const uri = pickerResult.assets[0].uri;
-    setImageUri(uri); // Show the new image immediately
-    uploadImage(uri); // Start uploading to Firebase
+    Alert.alert("Feature Disabled", "Profile picture upload is disabled as Firebase Storage is not in use."); //
   };
 
-  // --- IMAGE UPLOAD FUNCTION ---
-  const uploadImage = async (uri) => {
-    try {
-      const response = await fetch(uri);
-      const blob = await response.blob();
-      
-      const storage = getStorage();
-      // Create a unique path for the image using the user's ID
-      const storageRef = ref(storage, `profile_pictures/${user.uid}`);
-
-      // Upload the file
-      await uploadBytes(storageRef, blob);
-
-      // Get the download URL
-      const downloadURL = await getDownloadURL(storageRef);
-
-      // Update the user's document in Firestore with the new photoURL
-      const userDocRef = doc(db, 'users', user.uid);
-      await updateDoc(userDocRef, {
-        photoURL: downloadURL,
-      });
-
-      Alert.alert("Success", "Profile picture updated!");
-
-    } catch (error) {
-      console.error("Error uploading image: ", error);
-      Alert.alert("Upload Failed", "Could not upload your profile picture.");
-    }
-  };
+  // --- REMOVED: IMAGE UPLOAD FUNCTION ---
+  // The 'uploadImage' function is removed entirely.
 
 
   return (
     <ScrollView style={styles.outerContainer} contentContainerStyle={styles.container}>
       <TouchableOpacity style={styles.avatarContainer} onPress={handlePickImage}>
-        {imageUri ? (
-          <Image source={{ uri: imageUri }} style={styles.avatar} />
-        ) : (
-          <View style={styles.placeholder}>
-            <Ionicons name="camera" size={40} color="#ccc" />
-          </View>
-        )}
+        {/* Always show placeholder since we can't save/load images */}
+        <View style={styles.placeholder}>
+            <Ionicons name="person" size={50} color="#ccc" />
+        </View>
         <View style={styles.editIcon}>
-            <Ionicons name="pencil" size={18} color="#fff" />
+            <Ionicons name="eye-off-outline" size={18} color="#fff" />
         </View>
       </TouchableOpacity>
 
-      <Text style={styles.userName}>{user.displayName || 'Farmer'}</Text>
+      <Text style={styles.userName}>{user.displayName || 'Seller'}</Text>
       <Text style={styles.userEmail}>{user.email}</Text>
 
       <View style={styles.roleBadge}>

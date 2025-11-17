@@ -12,9 +12,10 @@ import {
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker'; // <-- Import Image Picker
-import { db, auth, storage } from '../../services/firebase'; // <-- Import storage
+// --- MODIFIED IMPORTS ---
+import { db, auth } from '../../services/firebase'; // Removed 'storage'
 import { collection, addDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'; // <-- Import storage functions
+// Removed: import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 export default function AddNewProduct({ navigation }) {
   const [product, setProduct] = useState({
@@ -30,7 +31,13 @@ export default function AddNewProduct({ navigation }) {
     setProduct({ ...product, [field]: value });
   };
 
-  // --- NEW: Function to pick an image ---
+// --- NEW: Dummy placeholder function replacing the upload logic ---
+  const getPlaceholderUrl = () => {
+      // This URL will be saved to Firestore instead of a real image link
+      return 'https://placehold.co/600x400/2E8B57/FFFFFF?text=Product+Image';
+  };
+
+  // --- MODIFIED: Function to pick an image ---
   const handlePickImage = async () => {
     // Request permission
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -41,7 +48,7 @@ export default function AddNewProduct({ navigation }) {
 
     // Launch image picker
     const pickerResult = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ImagePicker.MediaType.Images, // Corrected from deprecated type
       allowsEditing: true,
       aspect: [1, 1], // Square aspect ratio
       quality: 0.7, // Compress image
@@ -52,27 +59,7 @@ export default function AddNewProduct({ navigation }) {
     }
   };
 
-  // --- NEW: Function to upload the image to Firebase Storage ---
-  const uploadImage = async (uri) => {
-    try {
-      const response = await fetch(uri);
-      const blob = await response.blob();
-      
-      // Create a unique file name
-      const fileName = `product_${Date.now()}`;
-      const storageRef = ref(storage, `product_images/${fileName}`);
-
-      // Upload the file
-      await uploadBytes(storageRef, blob);
-
-      // Get the download URL
-      return await getDownloadURL(storageRef);
-
-    } catch (error) {
-      console.error("Error uploading image: ", error);
-      throw new Error("Image upload failed");
-    }
-  };
+  // --- REMOVED: Function to upload the image to Firebase Storage is deleted ---
 
 
   const handleSubmit = async () => {
@@ -81,7 +68,7 @@ export default function AddNewProduct({ navigation }) {
       return;
     }
 
-    // --- NEW: Check if an image is selected ---
+    // --- NEW: Check if an image is selected is relaxed, but we'll use placeholder if true ---
     if (!imageUri) {
       Alert.alert('Missing Image', 'Please pick an image for the product.');
       return;
@@ -96,8 +83,8 @@ export default function AddNewProduct({ navigation }) {
     setIsLoading(true);
 
     try {
-      // 1. Upload the image first
-      const downloadURL = await uploadImage(imageUri);
+      // 1. Get the placeholder URL instead of trying to upload the image
+      const downloadURL = getPlaceholderUrl(); // <-- CHANGED: Uses placeholder
 
       // 2. Prepare product data with the new image URL
       const newProductData = {
@@ -106,7 +93,7 @@ export default function AddNewProduct({ navigation }) {
         price: parseFloat(product.price) || 0,
         description: product.description,
         stockStatus: 'In Stock',
-        image: downloadURL, // <-- Use the URL from storage
+        image: downloadURL, // <-- Now a placeholder URL
         sellerId: currentUser.uid,
       };
 
