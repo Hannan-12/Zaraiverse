@@ -9,7 +9,10 @@ export default function RegisterScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('farmer');
-  const [loading, setLoading] = useState(false); // <-- NEW: Loading state
+  const [loading, setLoading] = useState(false);
+
+  // Define allowed roles for public registration (Admin removed)
+  const roles = ['farmer', 'seller', 'expert']; 
 
   const register = async () => {
     if (!name || !email || !password) {
@@ -21,21 +24,23 @@ export default function RegisterScreen({ navigation }) {
       return;
     }
 
-    setLoading(true); // <-- NEW: Start loading
+    setLoading(true);
     try {
+      // 1. Create User in Firebase Auth
       const cred = await createUserWithEmailAndPassword(auth, email, password);
-      // Save user profile to Firestore with their selected role
+      
+      // 2. Save user profile to Firestore
       await setDoc(doc(db, 'users', cred.user.uid), { 
         name, 
         email, 
         role,
-        createdAt: new Date(), // Optional: good to store creation date
+        createdAt: new Date(),
       });
 
+      // 3. Success! Auto-redirect handled by AuthContext
       Alert.alert(
         "Success", 
-        "Account created successfully! You can now sign in.",
-        [{ text: "OK", onPress: () => navigation.navigate('Login') }] // <-- NEW: Navigate to Login on success
+        "Account created! Redirecting to dashboard..."
       );
 
     } catch (e) {
@@ -45,38 +50,56 @@ export default function RegisterScreen({ navigation }) {
         Alert.alert("Registration Failed", e.message);
       }
     } finally {
-      setLoading(false); // <-- NEW: Stop loading
+      setLoading(false);
     }
   };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      {/* ... */}
       <Image 
         source={require('../../assets/ZaraiVerse.png')}
         style={styles.logo} 
       />
-      {/* ... */}
 
       <Text style={styles.title}>Create Account</Text>
       
-      {/* --- Input fields are the same --- */}
       <View style={styles.inputContainer}>
         <Text style={styles.label}>Full Name</Text>
-        <TextInput placeholder="Enter your full name" style={styles.input} value={name} onChangeText={setName} autoCapitalize="words"/>
+        <TextInput 
+          placeholder="Enter your full name" 
+          style={styles.input} 
+          value={name} 
+          onChangeText={setName} 
+          autoCapitalize="words"
+        />
       </View>
+
       <View style={styles.inputContainer}>
         <Text style={styles.label}>Email</Text>
-        <TextInput placeholder="Enter your email" style={styles.input} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none"/>
+        <TextInput 
+          placeholder="Enter your email" 
+          style={styles.input} 
+          value={email} 
+          onChangeText={setEmail} 
+          keyboardType="email-address" 
+          autoCapitalize="none"
+        />
       </View>
+
       <View style={styles.inputContainer}>
         <Text style={styles.label}>Password</Text>
-        <TextInput placeholder="Enter your password" style={styles.input} value={password} onChangeText={setPassword} secureTextEntry />
+        <TextInput 
+          placeholder="Enter your password" 
+          style={styles.input} 
+          value={password} 
+          onChangeText={setPassword} 
+          secureTextEntry 
+        />
       </View>
 
       <Text style={styles.roleLabel}>Select Role:</Text>
       <View style={styles.roleButtonsContainer}>
-        {['farmer', 'seller', 'expert', 'admin'].map(r => (
+        {roles.map(r => (
           <TouchableOpacity 
             key={r} 
             style={[styles.roleButton, role === r && styles.roleButtonActive]} 
@@ -89,7 +112,6 @@ export default function RegisterScreen({ navigation }) {
         ))}
       </View>
 
-      {/* --- UPDATED: Register button now shows loading state --- */}
       <TouchableOpacity style={styles.registerButton} onPress={register} disabled={loading}>
         {loading ? (
           <ActivityIndicator color="#FFFFFF" />
@@ -107,7 +129,6 @@ export default function RegisterScreen({ navigation }) {
   );
 }
 
-// --- Styles are the same ---
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,

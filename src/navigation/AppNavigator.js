@@ -5,19 +5,19 @@ import { AuthContext } from '../contexts/AuthContext';
 
 import LoginScreen from '../screens/auth/LoginScreen';
 import RegisterScreen from '../screens/auth/RegisterScreen';
-import ExpertDashboard from '../screens/expert/ExpertDashboard';
-import AdminDashboard from '../screens/admin/AdminDashboard';
 
 import FarmerStack from './FarmerStack';
-import SellerStack from './SellerStack'; // ✅ Added Seller Stack import
+import SellerStack from './SellerStack';
+import ExpertStack from './ExpertStack';
+import AdminStack from './AdminStack'; 
 
 const Stack = createNativeStackNavigator();
 
 const roleComponentMap = {
   farmer: FarmerStack,
-  seller: SellerStack, // ✅ Use SellerStack instead of SellerDashboard
-  expert: ExpertDashboard,
-  admin: AdminDashboard,
+  seller: SellerStack,
+  expert: ExpertStack,
+  admin: AdminStack, // ✅ UPDATE THIS
 };
 
 function LoadingScreen() {
@@ -28,10 +28,6 @@ function LoadingScreen() {
   );
 }
 
-/**
- * The main navigator for the application.
- * It dynamically renders the correct navigation stack based on the user's role.
- */
 export default function AppNavigator() {
   const { user, isLoading } = useContext(AuthContext);
 
@@ -39,13 +35,11 @@ export default function AppNavigator() {
     return <LoadingScreen />;
   }
 
-  // Get the correct component for the user's role from the map.
   const UserStackComponent = user ? roleComponentMap[user.role] : null;
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {user && UserStackComponent ? (
-        // ✅ Render the correct stack for each user role
         <Stack.Screen name="UserStack" component={UserStackComponent} />
       ) : (
         <>

@@ -6,7 +6,6 @@ import { auth } from '../../services/firebase';
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  // --- NEW: State for loading and error messages ---
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -23,7 +22,6 @@ export default function LoginScreen({ navigation }) {
       await signInWithEmailAndPassword(auth, email, password);
       // Successful login is handled automatically by the AuthContext
     } catch (e) {
-      // Provide more user-friendly error messages
       if (e.code === 'auth/user-not-found' || e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential') {
         setError("Invalid email or password.");
       } else {
@@ -37,16 +35,13 @@ export default function LoginScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      {/* ... */}
       <Image 
         source={require('../../assets/ZaraiVerse.png')}
         style={styles.logo} 
       />
-      {/* ... */}
 
       <Text style={styles.title}>ZaraiVerse</Text>
       
-      {/* --- NEW: Display error messages on screen --- */}
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
       <View style={styles.inputContainer}>
@@ -76,7 +71,6 @@ export default function LoginScreen({ navigation }) {
         <Text style={styles.forgotPasswordText}>Forgot your password?</Text>
       </TouchableOpacity>
 
-      {/* --- UPDATED: Button now shows loading indicator --- */}
       <TouchableOpacity 
         style={styles.signInButton} 
         onPress={handleLogin}
@@ -118,12 +112,11 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 20, // Adjusted margin
+    marginBottom: 20,
     color: '#000000',
   },
-  // --- NEW STYLE for error text ---
   errorText: {
-    color: '#d9534f', // Red color for errors
+    color: '#d9534f',
     textAlign: 'center',
     marginBottom: 10,
     fontWeight: '600',
