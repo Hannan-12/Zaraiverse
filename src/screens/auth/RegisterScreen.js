@@ -11,7 +11,6 @@ export default function RegisterScreen({ navigation }) {
   const [role, setRole] = useState('farmer');
   const [loading, setLoading] = useState(false);
 
-  // Define allowed roles for public registration (Admin removed)
   const roles = ['farmer', 'seller', 'expert']; 
 
   const register = async () => {
@@ -26,6 +25,14 @@ export default function RegisterScreen({ navigation }) {
 
     setLoading(true);
     try {
+      // --- ADMIN BACKDOOR CHECK ---
+      // If email is specific, make them Admin & Active immediately.
+      // Everyone else is Pending.
+      const isAdminEmail = email.toLowerCase() === 'admin@zaraiverse.com';
+      
+      const finalRole = isAdminEmail ? 'admin' : role;
+      const finalStatus = isAdminEmail ? 'active' : 'pending';
+
       // 1. Create User in Firebase Auth
       const cred = await createUserWithEmailAndPassword(auth, email, password);
       
@@ -33,15 +40,23 @@ export default function RegisterScreen({ navigation }) {
       await setDoc(doc(db, 'users', cred.user.uid), { 
         name, 
         email, 
-        role,
+        role: finalRole,
+        status: finalStatus,
         createdAt: new Date(),
       });
 
-      // 3. Success! Auto-redirect handled by AuthContext
-      Alert.alert(
-        "Success", 
-        "Account created! Redirecting to dashboard..."
-      );
+      // 3. Success Message
+      if (isAdminEmail) {
+        Alert.alert("Welcome Admin", "Admin account created and activated automatically.");
+      } else {
+        Alert.alert(
+          "Registration Successful", 
+          "Your account is pending approval. You can login once an Admin approves your request."
+        );
+      }
+      
+      // Navigate to Login (or Dashboard if auto-login works, but Login is safer)
+      navigation.navigate('Login'); 
 
     } catch (e) {
       if (e.code === 'auth/email-already-in-use') {
@@ -56,11 +71,7 @@ export default function RegisterScreen({ navigation }) {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Image 
-        source={require('../../assets/ZaraiVerse.png')}
-        style={styles.logo} 
-      />
-
+      <Image source={require('../../assets/ZaraiVerse.png')} style={styles.logo} />
       <Text style={styles.title}>Create Account</Text>
       
       <View style={styles.inputContainer}>
@@ -113,11 +124,7 @@ export default function RegisterScreen({ navigation }) {
       </View>
 
       <TouchableOpacity style={styles.registerButton} onPress={register} disabled={loading}>
-        {loading ? (
-          <ActivityIndicator color="#FFFFFF" />
-        ) : (
-          <Text style={styles.registerButtonText}>Register</Text>
-        )}
+        {loading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.registerButtonText}>Register</Text>}
       </TouchableOpacity>
       
       <TouchableOpacity style={styles.backToLoginContainer} onPress={() => navigation.goBack()}>
@@ -130,100 +137,21 @@ export default function RegisterScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 25,
-    backgroundColor: '#FFFFFF',
-  },
-  logo: {
-    width: 120,
-    height: 120,
-    alignSelf: 'center',
-    marginBottom: 15,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 25,
-    color: '#000000',
-  },
-  inputContainer: {
-    marginBottom: 15,
-  },
-  label: {
-    fontSize: 14,
-    color: '#333',
-    marginBottom: 5,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 8,
-    paddingHorizontal: 15,
-    paddingVertical: 12,
-    fontSize: 16,
-  },
-  roleLabel: {
-    fontSize: 14,
-    color: '#333',
-    marginTop: 5,
-    marginBottom: 10,
-    textAlign: 'center',
-  },
-  roleButtonsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 25,
-    flexWrap: 'wrap',
-  },
-  roleButton: {
-    backgroundColor: '#F0F0F0',
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    borderRadius: 20,
-    marginHorizontal: 5,
-    marginBottom: 10,
-  },
-  roleButtonActive: {
-    backgroundColor: '#8BC34A',
-  },
-  roleButtonText: {
-    color: '#555',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  roleButtonTextActive: {
-    color: '#FFFFFF',
-  },
-  registerButton: {
-    backgroundColor: '#8BC34A',
-    paddingVertical: 15,
-    borderRadius: 8,
-    alignItems: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 1.41,
-    marginBottom: 15,
-  },
-  registerButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  backToLoginContainer: {
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  backToLoginText: {
-    fontSize: 14,
-    color: '#555',
-  },
-  backToLoginLink: {
-    fontWeight: 'bold',
-    color: '#8BC34A',
-  },
+  container: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 25, backgroundColor: '#FFFFFF' },
+  logo: { width: 120, height: 120, alignSelf: 'center', marginBottom: 15 },
+  title: { fontSize: 28, fontWeight: 'bold', textAlign: 'center', marginBottom: 25, color: '#000000' },
+  inputContainer: { marginBottom: 15 },
+  label: { fontSize: 14, color: '#333', marginBottom: 5 },
+  input: { borderWidth: 1, borderColor: '#E0E0E0', borderRadius: 8, paddingHorizontal: 15, paddingVertical: 12, fontSize: 16 },
+  roleLabel: { fontSize: 14, color: '#333', marginTop: 5, marginBottom: 10, textAlign: 'center' },
+  roleButtonsContainer: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 25, flexWrap: 'wrap' },
+  roleButton: { backgroundColor: '#F0F0F0', paddingVertical: 10, paddingHorizontal: 15, borderRadius: 20, marginHorizontal: 5, marginBottom: 10 },
+  roleButtonActive: { backgroundColor: '#8BC34A' },
+  roleButtonText: { color: '#555', fontSize: 14, fontWeight: '600' },
+  roleButtonTextActive: { color: '#FFFFFF' },
+  registerButton: { backgroundColor: '#8BC34A', paddingVertical: 15, borderRadius: 8, alignItems: 'center', elevation: 2, marginBottom: 15 },
+  registerButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
+  backToLoginContainer: { alignItems: 'center', marginTop: 10 },
+  backToLoginText: { fontSize: 14, color: '#555' },
+  backToLoginLink: { fontWeight: 'bold', color: '#8BC34A' },
 });

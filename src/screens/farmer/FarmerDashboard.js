@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import {
   View,
   Text,
@@ -7,58 +7,78 @@ import {
   ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LanguageContext } from '../../contexts/LanguageContext';
 
 export default function FarmerDashboard({ navigation }) {
+  const { t, language, setLanguage } = useContext(LanguageContext);
+
+  // Full list of dashboard items restored
   const dashboardItems = [
     {
-      title: 'Crop Progress',
+      title: t('cropProgress'),
       icon: 'leaf-outline',
       screen: 'CropProgress',
       color: '#81C784',
     },
     {
-      title: 'Request Prescription',
+      title: t('reqPrescription'),
       icon: 'medkit-outline',
       screen: 'RequestPrescription',
       color: '#66BB6A',
     },
     {
-      title: 'Knowledge Hub',
-      icon: 'book-outline',
-      screen: 'KnowledgeHub',
+      title: t('weather'),
+      icon: 'cloud-outline',
+      screen: 'Weather',
       color: '#4CAF50',
     },
     {
-      title: 'Task Reminders',
-      icon: 'alarm-outline',
-      screen: 'TaskReminders',
+      title: t('knowledgeHub'),
+      icon: 'book-outline',
+      screen: 'KnowledgeHub',
       color: '#388E3C',
     },
     {
-      title: 'Orders',
-      icon: 'receipt-outline',
-      screen: 'Orders',
+      title: t('tasks'),
+      icon: 'alarm-outline',
+      screen: 'TaskReminders',
       color: '#2E7D32',
     },
     {
-      title: 'Analytics',
-      icon: 'bar-chart-outline',
-      screen: 'Analytics',
+      title: t('orders'),
+      icon: 'receipt-outline',
+      screen: 'Orders',
       color: '#1B5E20',
     },
     {
-      title: 'Cart',
+      title: t('analytics'),
+      icon: 'bar-chart-outline',
+      screen: 'Analytics',
+      color: '#43A047',
+    },
+    {
+      title: t('cart'),
       icon: 'cart-outline',
       screen: 'Cart',
       color: '#4CAF50',
     },
   ];
 
+  const toggleLanguage = () => {
+    setLanguage(language === 'en' ? 'ur' : 'en');
+  };
+
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.header}>🌾 Farmer Dashboard</Text>
+      <View style={styles.headerContainer}>
+        <Text style={styles.header}>{t('dashboard')}</Text>
+        <TouchableOpacity onPress={toggleLanguage} style={styles.langButton}>
+          <Text style={styles.langText}>{language === 'en' ? 'Urdu' : 'English'}</Text>
+        </TouchableOpacity>
+      </View>
+      
       <Text style={styles.subText}>
-        Manage your crops, analyze data, and explore buyer insights.
+        {language === 'en' ? 'Manage your crops and insights' : 'اپنی فصلوں اور بصیرت کا انتظام کریں'}
       </Text>
 
       <View style={styles.grid}>
@@ -66,7 +86,6 @@ export default function FarmerDashboard({ navigation }) {
           <TouchableOpacity
             key={index}
             style={[styles.card, { backgroundColor: item.color }]}
-            // Navigation logic remains simple and correct for these items
             onPress={() => navigation.navigate(item.screen)}
           >
             <Ionicons name={item.icon} size={40} color="#fff" />
@@ -85,18 +104,34 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 40,
   },
+  headerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 5
+  },
   header: {
     fontSize: 28,
     fontWeight: 'bold',
     color: '#2E8B57',
-    textAlign: 'center',
+  },
+  langButton: {
+    borderWidth: 1,
+    borderColor: '#2E8B57',
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    backgroundColor: '#fff',
+  },
+  langText: {
+    color: '#2E8B57',
+    fontWeight: '600'
   },
   subText: {
     fontSize: 16,
     color: '#555',
-    textAlign: 'center',
+    textAlign: 'left',
     marginBottom: 20,
-    marginTop: 5,
   },
   grid: {
     flexDirection: 'row',
@@ -124,4 +159,3 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
-

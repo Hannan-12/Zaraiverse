@@ -1,6 +1,7 @@
 // src/screens/admin/AdminDashboard.js
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native'; // <--- IMPORT THIS
 import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { AuthContext } from '../../contexts/AuthContext';
 import { collection, getCountFromServer } from 'firebase/firestore';
@@ -10,26 +11,35 @@ export default function AdminDashboard({ navigation }) {
   const { user } = useContext(AuthContext);
   const [stats, setStats] = useState({ users: 0, products: 0, blogs: 0 });
 
-  // Fetch some real counts (optional, adds realism)
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const userSnap = await getCountFromServer(collection(db, 'users'));
-        const productSnap = await getCountFromServer(collection(db, 'products'));
-        // Assuming you might have a blogs collection later
-        // const blogSnap = await getCountFromServer(collection(db, 'blogs')); 
-        
-        setStats({
-          users: userSnap.data().count,
-          products: productSnap.data().count,
-          blogs: 5, // Placeholder if collection doesn't exist yet
-        });
-      } catch (e) {
-        console.log("Error fetching stats:", e);
-      }
-    };
-    fetchStats();
-  }, []);
+  // --- REPLACE useEffect WITH useFocusEffect ---
+  useFocusEffect(
+    useCallback(() => {
+      const fetchStats = async () => {
+        try {
+          console.log("🔄 Refreshing Admin Dashboard Stats...");
+
+          // 1. Fetch User Count
+          const userSnap = await getCountFromServer(collection(db, 'users'));
+          
+          // 2. Fetch Product Count
+          const productSnap = await getCountFromServer(collection(db, 'products'));
+          
+          // 3. Fetch Blog Count (Now connected to real collection)
+          const blogSnap = await getCountFromServer(collection(db, 'blogs')); 
+          
+          setStats({
+            users: userSnap.data().count,
+            products: productSnap.data().count,
+            blogs: blogSnap.data().count, 
+          });
+        } catch (e) {
+          console.log("Error fetching stats:", e);
+        }
+      };
+
+      fetchStats();
+    }, []) // Dependencies array remains empty
+  );
 
   const menuItems = [
     {

@@ -1,8 +1,8 @@
-// src/contexts/AuthContext.js
 import React, { createContext, useEffect, useState, useContext } from 'react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../services/firebase';
+import { Alert } from 'react-native';
 
 export const AuthContext = createContext();
 
@@ -16,22 +16,37 @@ export const AuthProvider = ({ children }) => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         try {
-          // Fetch user profile from Firestore
           const userDocRef = doc(db, 'users', firebaseUser.uid);
           const userDocSnap = await getDoc(userDocRef);
 
           if (userDocSnap.exists()) {
-            const userProfileData = userDocSnap.data();
-            setUser({
-              ...firebaseUser,
-              role: userProfileData.role || 'Seller',
-            });
+            const userData = userDocSnap.data();
+            
+            // --- SECURITY CHECK ---
+            // EXCEPTION: If role is 'admin', allow access regardless of status.
+            if (userData.role !== 'admin' && userData.status !== 'active') {
+              
+              let message = "Your account is pending approval by an admin.";
+              if (userData.status === 'blocked') message = "Your account has been blocked.";
+              
+              Alert.alert("Access Denied", message);
+              await signOut(auth);
+              setUser(null);
+            } 
+            else {
+              // User is Active OR User is Admin
+              setUser({
+                ...firebaseUser,
+                role: userData.role || 'farmer',
+              });
+            }
           } else {
-            console.warn("⚠️ User document doesn't exist in Firestore!");
-            setUser(firebaseUser); // fallback
+            setUser(null); 
+            await signOut(auth);
           }
         } catch (error) {
           console.error("Error fetching user profile:", error);
+          setUser(null);
         }
       } else {
         setUser(null);
@@ -43,14 +58,12 @@ export const AuthProvider = ({ children }) => {
     return unsubscribe;
   }, []);
 
-  // ✅ Logout function
   const logout = async () => {
     try {
       await signOut(auth);
       setUser(null);
-      console.log('✅ User logged out successfully');
     } catch (error) {
-      console.error('❌ Error during logout:', error);
+      console.error('Error logging out:', error);
     }
   };
 
@@ -59,7 +72,7 @@ export const AuthProvider = ({ children }) => {
     setUser,
     isLoading,
     isAuthenticated: !!user,
-    logout, // ✅ expose logout function
+    logout,
   };
 
   return (

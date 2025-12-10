@@ -6,10 +6,11 @@ import { AuthContext } from '../contexts/AuthContext';
 import LoginScreen from '../screens/auth/LoginScreen';
 import RegisterScreen from '../screens/auth/RegisterScreen';
 
+// --- STACKS ---
 import FarmerStack from './FarmerStack';
 import SellerStack from './SellerStack';
 import ExpertStack from './ExpertStack';
-import AdminStack from './AdminStack'; 
+import AdminStack from './AdminStack'; // <--- THIS LINE IS CRITICAL
 
 const Stack = createNativeStackNavigator();
 
@@ -17,7 +18,7 @@ const roleComponentMap = {
   farmer: FarmerStack,
   seller: SellerStack,
   expert: ExpertStack,
-  admin: AdminStack, // ✅ UPDATE THIS
+  admin: AdminStack, // <--- This requires the import above
 };
 
 function LoadingScreen() {
@@ -35,6 +36,7 @@ export default function AppNavigator() {
     return <LoadingScreen />;
   }
 
+  // Select the correct stack based on user role
   const UserStackComponent = user ? roleComponentMap[user.role] : null;
 
   return (
