@@ -1,5 +1,5 @@
 // src/screens/farmer/CropProgressScreen.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import {
   View,
   Text,
@@ -9,11 +9,11 @@ import {
   Modal,
   TextInput,
   Alert,
-  ScrollView,
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { db } from '../../services/firebase';
+import { AuthContext } from '../../contexts/AuthContext'; // Import AuthContext
 import {
   collection,
   query,
@@ -23,53 +23,91 @@ import {
   doc,
   Timestamp,
   orderBy,
+  where,
+  getDocs,
+  limit
 } from 'firebase/firestore';
 import { format } from 'date-fns';
 
 export default function CropProgressScreen({ route, navigation }) {
-  // --- ✅ FIX: Safely destructure crop with a fallback ---
-  const { crop } = route.params || {}; 
+  const { user } = useContext(AuthContext);
+  
+  // 1. Check if a crop was passed via navigation
+  const passedCrop = route.params?.crop;
 
-  // --- CRASH PREVENTION: Handle case where crop is still undefined ---
-  if (!crop) {
-    return (
-      <View style={styles.centeredContainer}>
-        <Text style={styles.errorHeader}>Crop Not Found</Text>
-        <Text style={styles.errorMessage}>
-          The crop details could not be loaded. Please return to "My Crops".
-        </Text>
-        <TouchableOpacity style={styles.goBackButton} onPress={() => navigation.goBack()}>
-          <Text style={styles.goBackText}>Go Back</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
+  // 2. State for the "Active" crop we are viewing
+  const [activeCrop, setActiveCrop] = useState(passedCrop || null);
   const [progress, setProgress] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [modalVisible, setModalVisible] = useState(false);
+  const [fetchingCrop, setFetchingCrop] = useState(!passedCrop); // Loading state for initial crop fetch
 
-  // State for the new entry modal
+  // Modal State
+  const [modalVisible, setModalVisible] = useState(false);
   const [entryTitle, setEntryTitle] = useState('');
   const [entryNotes, setEntryNotes] = useState('');
 
-  // Get the reference to this crop's 'progressEntries' sub-collection
-  const progressColRef = collection(db, 'crops', crop.id, 'progressEntries');
-
-  // Set the screen title to the crop name
+  // --- EFFECT 1: Fetch Crop if None Passed ---
   useEffect(() => {
-    navigation.setOptions({ title: `${crop.name} Progress` });
-  }, [crop, navigation]);
+    // If we already have a crop (passed from MyCrops), skip this
+    if (activeCrop) {
+      setFetchingCrop(false);
+      return;
+    }
 
-  // Listen for progress updates
+    if (!user) return;
+
+    const fetchLatestCrop = async () => {
+      try {
+        console.log("🔍 No crop passed. Fetching latest active crop...");
+        
+        // Query: Get crops for this user
+        // We fetch all and sort in JS to avoid "Missing Index" errors common in dev
+        const q = query(collection(db, 'crops'), where('userId', '==', user.uid));
+        const snapshot = await getDocs(q);
+
+        if (!snapshot.empty) {
+          const cropsList = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+            plantedDate: doc.data().plantedDate?.toDate ? doc.data().plantedDate.toDate() : new Date()
+          }));
+
+          // Sort by plantedDate (Newest first)
+          cropsList.sort((a, b) => b.plantedDate - a.plantedDate);
+
+          // Pick the first one (Latest)
+          const latest = cropsList[0];
+          console.log("✅ Found latest crop:", latest.name);
+          setActiveCrop(latest);
+        } else {
+          console.log("⚠️ No crops found for user.");
+        }
+      } catch (error) {
+        console.error("Error auto-fetching crop:", error);
+      } finally {
+        setFetchingCrop(false);
+      }
+    };
+
+    fetchLatestCrop();
+  }, [user, activeCrop]);
+
+
+  // --- EFFECT 2: Set Title & Fetch Progress ---
   useEffect(() => {
-    // Note: This query uses 'orderBy' and 'onSnapshot', which usually requires an index.
-    // Check Firebase console if fetching fails here.
+    if (!activeCrop) {
+      setLoading(false);
+      return;
+    }
+
+    // Set Header Title dynamically
+    navigation.setOptions({ title: `${activeCrop.name} Progress` });
+
+    // Fetch Progress Entries for this specific crop
+    const progressColRef = collection(db, 'crops', activeCrop.id, 'progressEntries');
     const q = query(progressColRef, orderBy('date', 'desc'));
 
-    const unsubscribe = onSnapshot(
-      q,
-      (querySnapshot) => {
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
         const progressData = [];
         querySnapshot.forEach((doc) => {
           const data = doc.data();
@@ -84,43 +122,39 @@ export default function CropProgressScreen({ route, navigation }) {
       },
       (error) => {
         console.error('Error fetching progress: ', error);
-        Alert.alert('Error', 'Could not load progress data.');
         setLoading(false);
       }
     );
 
     return () => unsubscribe();
-  }, [crop.id]);
+  }, [activeCrop, navigation]);
 
-  // --- Handler to save a new progress entry ---
+
+  // --- Handlers ---
   const handleAddEntry = async () => {
     if (!entryTitle.trim()) {
-      Alert.alert('Missing Title', 'Please enter a title for this entry.');
+      Alert.alert('Missing Title', 'Please enter a title.');
       return;
     }
     
-    const newEntry = {
-      title: entryTitle,
-      notes: entryNotes,
-      date: Timestamp.now(),
-    };
-
     try {
-      await addDoc(progressColRef, newEntry);
+      await addDoc(collection(db, 'crops', activeCrop.id, 'progressEntries'), {
+        title: entryTitle,
+        notes: entryNotes,
+        date: Timestamp.now(),
+      });
       setModalVisible(false);
       setEntryTitle('');
       setEntryNotes('');
     } catch (error) {
-      console.error('Error adding entry: ', error);
-      Alert.alert('Error', 'Could not save new entry.');
+      Alert.alert('Error', 'Could not save entry.');
     }
   };
 
-  // --- Handler to mark the crop as HARVESTED ---
   const handleHarvest = async () => {
     Alert.alert(
       'Harvest Crop?',
-      `Are you sure you want to mark ${crop.name} as harvested? This will remove it from your active crops list.`,
+      `Mark ${activeCrop.name} as harvested?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -128,25 +162,15 @@ export default function CropProgressScreen({ route, navigation }) {
           style: 'destructive',
           onPress: async () => {
             try {
-              // 1. Add a final "Harvested" entry
-              const harvestEntry = {
+              await addDoc(collection(db, 'crops', activeCrop.id, 'progressEntries'), {
                 title: 'Harvested',
                 notes: 'Crop has been fully harvested.',
                 date: Timestamp.now(),
-              };
-              await addDoc(progressColRef, harvestEntry);
-
-              // 2. Update the main crop's status
-              const cropDocRef = doc(db, 'crops', crop.id);
-              await updateDoc(cropDocRef, {
-                status: 'Harvested',
               });
-
-              // 3. Go back. The list screen will auto-update.
+              await updateDoc(doc(db, 'crops', activeCrop.id), { status: 'Harvested' });
               navigation.goBack();
             } catch (error) {
-              console.error('Error harvesting crop: ', error);
-              Alert.alert('Error', 'Could not update crop status.');
+              Alert.alert('Error', 'Could not update crop.');
             }
           },
         },
@@ -154,85 +178,96 @@ export default function CropProgressScreen({ route, navigation }) {
     );
   };
 
-  // --- Renders each item in the timeline ---
+  // --- Render Timeline Item ---
   const renderProgressItem = ({ item, index }) => (
     <View style={styles.timelineItem}>
       <View style={styles.timelineIcon}>
-        <Ionicons
-          name={item.title === 'Planted' ? 'leaf' : 'ellipse'}
-          size={12}
-          color="#fff"
-        />
+        <Ionicons name={item.title === 'Planted' ? 'leaf' : 'ellipse'} size={12} color="#fff" />
       </View>
       {index !== progress.length - 1 && <View style={styles.timelineLine} />}
       <View style={styles.timelineContent}>
         <Text style={styles.itemTitle}>{item.title}</Text>
         <Text style={styles.itemDate}>{format(item.date, 'MMM d, yyyy')}</Text>
-        <Text style={styles.itemNotes}>{item.notes}</Text>
+        {item.notes ? <Text style={styles.itemNotes}>{item.notes}</Text> : null}
       </View>
     </View>
   );
 
+  // --- LOADING STATES ---
+  if (fetchingCrop) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#2E8B57" />
+        <Text style={styles.loadingText}>Finding your latest crop...</Text>
+      </View>
+    );
+  }
+
+  // --- EMPTY STATE (No crops found) ---
+  if (!activeCrop) {
+    return (
+      <View style={styles.center}>
+        <Ionicons name="leaf-outline" size={60} color="#ccc" />
+        <Text style={styles.errorText}>No Active Crops Found.</Text>
+        <TouchableOpacity 
+          style={styles.addButton}
+          onPress={() => navigation.navigate('MyCrops')} // Or AddCrop
+        >
+          <Text style={styles.addButtonText}>Go to My Crops</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  // --- MAIN UI ---
   return (
-    <View style={styles.outerContainer}>
+    <View style={styles.container}>
       {loading ? (
-        <ActivityIndicator style={styles.centered} size="large" color="#2e7d32" />
+        <ActivityIndicator style={{marginTop: 50}} size="large" color="#2e7d32" />
       ) : (
         <FlatList
           data={progress}
           renderItem={renderProgressItem}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContainer}
+          contentContainerStyle={styles.list}
           ListHeaderComponent={
-            <TouchableOpacity
-              style={styles.harvestButton}
-              onPress={handleHarvest}>
-              <Ionicons name="checkmark-done-circle" size={22} color="#fff" />
-              <Text style={styles.harvestButtonText}>Mark as Harvested</Text>
-            </TouchableOpacity>
+            <View>
+              <View style={styles.headerRow}>
+                <Text style={styles.cropNameTitle}>{activeCrop.name}</Text>
+                <View style={[styles.statusBadge, { backgroundColor: activeCrop.status === 'Growing' ? '#E8F5E9' : '#FFF3E0' }]}>
+                   <Text style={{color: activeCrop.status === 'Growing' ? '#2E8B57' : '#F57C00', fontWeight:'bold', fontSize:12}}>
+                     {activeCrop.status}
+                   </Text>
+                </View>
+              </View>
+              
+              <TouchableOpacity style={styles.harvestButton} onPress={handleHarvest}>
+                <Ionicons name="checkmark-done-circle" size={20} color="#fff" />
+                <Text style={styles.harvestButtonText}>Mark Harvested</Text>
+              </TouchableOpacity>
+            </View>
           }
         />
       )}
 
-      {/* --- Floating Action Button to Add New Entry --- */}
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => setModalVisible(true)}>
+      {/* FAB */}
+      <TouchableOpacity style={styles.fab} onPress={() => setModalVisible(true)}>
         <Ionicons name="add" size={30} color="#FFFFFF" />
       </TouchableOpacity>
 
-      {/* --- Modal for Adding New Entry --- */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}>
+      {/* Modal */}
+      <Modal animationType="slide" transparent={true} visible={modalVisible} onRequestClose={() => setModalVisible(false)}>
         <View style={styles.modalContainer}>
           <View style={styles.modalView}>
-            <Text style={styles.modalTitle}>Add Progress Entry</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Title (e.g., Fertilized, Watered)"
-              value={entryTitle}
-              onChangeText={setEntryTitle}
-            />
-            <TextInput
-              style={[styles.input, styles.notesInput]}
-              placeholder="Notes (Optional)"
-              value={entryNotes}
-              onChangeText={setEntryNotes}
-              multiline
-            />
-            <View style={styles.modalButtonContainer}>
-              <TouchableOpacity
-                style={[styles.button, styles.buttonClose]}
-                onPress={() => setModalVisible(false)}>
-                <Text style={styles.textStyle}>Cancel</Text>
+            <Text style={styles.modalTitle}>Add Update</Text>
+            <TextInput style={styles.input} placeholder="Title (e.g. Watered)" value={entryTitle} onChangeText={setEntryTitle} />
+            <TextInput style={[styles.input, styles.notesInput]} placeholder="Notes" value={entryNotes} onChangeText={setEntryNotes} multiline />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity style={[styles.btn, styles.btnClose]} onPress={() => setModalVisible(false)}>
+                <Text style={styles.btnText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.button, styles.buttonSave]}
-                onPress={handleAddEntry}>
-                <Text style={styles.textStyle}>Save</Text>
+              <TouchableOpacity style={[styles.btn, styles.btnSave]} onPress={handleAddEntry}>
+                <Text style={styles.btnText}>Save</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -242,162 +277,40 @@ export default function CropProgressScreen({ route, navigation }) {
   );
 }
 
-// --- STYLES ---
 const styles = StyleSheet.create({
-  outerContainer: { flex: 1, backgroundColor: '#F8F9FA' },
-  centered: { marginTop: 50 },
-  // --- NEW STYLES for the fallback screen ---
-  centeredContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#F8F9FA',
-  },
-  errorHeader: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#d9534f',
-    marginBottom: 10,
-  },
-  errorMessage: {
-    fontSize: 16,
-    color: '#555',
-    textAlign: 'center',
-    marginBottom: 30,
-  },
-  goBackButton: {
-    backgroundColor: '#2e7d32',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-  },
-  goBackText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  // --- End NEW STYLES ---
-  listContainer: { padding: 20 },
-  harvestButton: {
-    flexDirection: 'row',
-    backgroundColor: '#d9534f', // Red for "complete" action
-    padding: 15,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 20,
-  },
-  harvestButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginLeft: 10,
-  },
-  // Timeline styles
-  timelineItem: {
-    flexDirection: 'row',
-    paddingBottom: 20,
-  },
-  timelineIcon: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#2e7d32',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1,
-  },
-  timelineLine: {
-    position: 'absolute',
-    left: 11,
-    top: 24,
-    width: 2,
-    height: '100%',
-    backgroundColor: '#e0e0e0',
-  },
-  timelineContent: {
-    flex: 1,
-    marginLeft: 15,
-    backgroundColor: '#fff',
-    padding: 15,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#eee',
-    marginTop: -5,
-  },
-  itemTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  itemDate: {
-    fontSize: 12,
-    color: '#888',
-    marginBottom: 5,
-  },
-  itemNotes: {
-    fontSize: 14,
-    color: '#555',
-  },
-  // FAB
-  fab: {
-    position: 'absolute',
-    right: 20,
-    bottom: 20,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#2e7d32',
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 8,
-  },
-  // Modal styles
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  modalView: {
-    width: '90%',
-    margin: 20,
-    backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 25,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 20 },
-  input: {
-    width: '100%',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 20,
-  },
-  notesInput: {
-    height: 80,
-    textAlignVertical: 'top',
-  },
-  modalButtonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-  },
-  button: {
-    borderRadius: 10,
-    padding: 12,
-    elevation: 2,
-    width: '48%',
-  },
-  buttonClose: { backgroundColor: '#aaa' },
-  buttonSave: { backgroundColor: '#2e7d32' },
-  textStyle: { color: 'white', fontWeight: 'bold', textAlign: 'center' },
+  container: { flex: 1, backgroundColor: '#F8F9FA' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
+  loadingText: { marginTop: 10, color: '#666' },
+  errorText: { fontSize: 18, color: '#555', marginVertical: 10, fontWeight: 'bold' },
+  list: { padding: 20 },
+  
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
+  cropNameTitle: { fontSize: 24, fontWeight: 'bold', color: '#2E8B57' },
+  statusBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10 },
+
+  harvestButton: { flexDirection: 'row', backgroundColor: '#d9534f', padding: 12, borderRadius: 8, justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
+  harvestButtonText: { color: '#fff', fontWeight: 'bold', marginLeft: 8 },
+  addButton: { backgroundColor: '#2E8B57', padding: 12, borderRadius: 8, marginTop: 10 },
+  addButtonText: { color: '#fff', fontWeight: 'bold' },
+
+  timelineItem: { flexDirection: 'row', paddingBottom: 20 },
+  timelineIcon: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#2e7d32', justifyContent: 'center', alignItems: 'center', zIndex: 1 },
+  timelineLine: { position: 'absolute', left: 11, top: 24, width: 2, height: '100%', backgroundColor: '#e0e0e0' },
+  timelineContent: { flex: 1, marginLeft: 15, backgroundColor: '#fff', padding: 15, borderRadius: 8, borderWidth: 1, borderColor: '#eee', marginTop: -5 },
+  itemTitle: { fontSize: 16, fontWeight: 'bold', color: '#333' },
+  itemDate: { fontSize: 12, color: '#888', marginBottom: 5 },
+  itemNotes: { fontSize: 14, color: '#555' },
+
+  fab: { position: 'absolute', right: 20, bottom: 20, width: 60, height: 60, borderRadius: 30, backgroundColor: '#2e7d32', justifyContent: 'center', alignItems: 'center', elevation: 8 },
+  
+  modalContainer: { flex: 1, justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)', padding: 20 },
+  modalView: { backgroundColor: 'white', borderRadius: 20, padding: 25, elevation: 5 },
+  modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 15, textAlign: 'center' },
+  input: { borderWidth: 1, borderColor: '#ddd', padding: 12, borderRadius: 8, marginBottom: 15 },
+  notesInput: { height: 80, textAlignVertical: 'top' },
+  modalButtons: { flexDirection: 'row', justifyContent: 'space-between' },
+  btn: { flex: 1, padding: 12, borderRadius: 8, alignItems: 'center', marginHorizontal: 5 },
+  btnClose: { backgroundColor: '#aaa' },
+  btnSave: { backgroundColor: '#2e7d32' },
+  btnText: { color: '#fff', fontWeight: 'bold' }
 });

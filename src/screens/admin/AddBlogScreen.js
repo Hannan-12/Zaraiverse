@@ -19,11 +19,16 @@ export default function AddBlogScreen({ navigation, route }) {
 
   const [title, setTitle] = useState(blogToEdit ? blogToEdit.title : '');
   const [content, setContent] = useState(blogToEdit ? blogToEdit.content : '');
+  // Added category state (Default to 'General' to ensure it always shows up somewhere)
+  const [category, setCategory] = useState(blogToEdit ? blogToEdit.category : 'General');
   const [loading, setLoading] = useState(false);
+
+  // Categories available in your Knowledge Hub
+  const categories = ['General', 'Crops', 'Pests', 'Tech'];
 
   const handleSave = async () => {
     if (!title || !content) {
-      Alert.alert("Error", "Please fill in both title and content.");
+      Alert.alert("Error", "Please fill in title and content.");
       return;
     }
 
@@ -32,8 +37,9 @@ export default function AddBlogScreen({ navigation, route }) {
       const blogData = {
         title,
         content,
+        category, // Saving the selected category
         updatedAt: Timestamp.now(),
-        // Simple placeholder image logic for now, you can add image picker later
+        // Simple placeholder image logic
         image: 'https://placehold.co/600x400/E8F5E9/2e7d32?text=ZaraiVerse+Blog', 
         source: { name: 'Admin' }
       };
@@ -46,7 +52,7 @@ export default function AddBlogScreen({ navigation, route }) {
         // Create new
         await addDoc(collection(db, 'blogs'), {
           ...blogData,
-          publishedAt: new Date().toISOString(), // Using ISO string for easier handling
+          publishedAt: new Date().toISOString(),
           createdAt: Timestamp.now(),
         });
         Alert.alert("Success", "Blog posted successfully!");
@@ -69,6 +75,21 @@ export default function AddBlogScreen({ navigation, route }) {
         value={title}
         onChangeText={setTitle}
       />
+
+      <Text style={styles.label}>Category</Text>
+      <View style={styles.categoryRow}>
+        {categories.map((cat) => (
+          <TouchableOpacity
+            key={cat}
+            style={[styles.catChip, category === cat && styles.catChipActive]}
+            onPress={() => setCategory(cat)}
+          >
+            <Text style={[styles.catText, category === cat && styles.catTextActive]}>
+              {cat}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
 
       <Text style={styles.label}>Content</Text>
       <TextInput 
@@ -111,6 +132,30 @@ const styles = StyleSheet.create({
   },
   textArea: {
     height: 200,
+  },
+  // New styles for category chips
+  categoryRow: { 
+    flexDirection: 'row', 
+    marginBottom: 20, 
+    flexWrap: 'wrap' 
+  },
+  catChip: {
+    paddingVertical: 8, 
+    paddingHorizontal: 15, 
+    borderRadius: 20, 
+    backgroundColor: '#E0E0E0', 
+    marginRight: 10, 
+    marginBottom: 5
+  },
+  catChipActive: { 
+    backgroundColor: '#2E8B57' 
+  },
+  catText: { 
+    color: '#555' 
+  },
+  catTextActive: { 
+    color: '#fff', 
+    fontWeight: 'bold' 
   },
   saveButton: {
     backgroundColor: '#E67E22',

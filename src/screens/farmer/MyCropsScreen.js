@@ -23,23 +23,39 @@ export default function MyCropsScreen({ navigation }) {
   useEffect(() => {
     if (!user) return;
 
+    // --- DEBUGGING LOGS ---
+    console.log("👤 Current User ID:", user.uid);
+
+    // ✅ FIX: Temporarily removed "where('status', '==', 'Growing')" 
+    // to ensure you can see ALL your crops, regardless of status spelling.
     const q = query(
       collection(db, 'crops'),
-      where('userId', '==', user.uid),
-      where('status', '==', 'Growing')
+      where('userId', '==', user.uid)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
+      console.log(`📦 Fetched ${snapshot.docs.length} crops from database.`);
+      
       const cropsData = snapshot.docs.map((doc) => {
         const data = doc.data();
+        // Log the status of each crop found
+        console.log(`- Found Crop: ${data.name}, Status: ${data.status}`);
+        
         return {
           id: doc.id,
           ...data,
-          plantedDate: data.plantedDate?.toDate() || new Date(),
+          // Safely handle date
+          plantedDate: data.plantedDate?.toDate ? data.plantedDate.toDate() : new Date(),
         };
       });
+
+      // Sort by date (Newest first)
       cropsData.sort((a, b) => b.plantedDate - a.plantedDate);
+      
       setCrops(cropsData);
+      setLoading(false);
+    }, (error) => {
+      console.error("❌ Error fetching crops:", error);
       setLoading(false);
     });
 
@@ -48,10 +64,10 @@ export default function MyCropsScreen({ navigation }) {
 
   const getHealthColor = (health) => {
     switch (health) {
-      case 'Good': return '#4CAF50'; // Green
-      case 'Moderate': return '#FFC107'; // Yellow/Orange
-      case 'Poor': return '#F44336'; // Red
-      default: return '#9E9E9E'; // Grey
+      case 'Good': return '#4CAF50';
+      case 'Moderate': return '#FFC107';
+      case 'Poor': return '#F44336';
+      default: return '#9E9E9E';
     }
   };
 
@@ -62,15 +78,13 @@ export default function MyCropsScreen({ navigation }) {
       onPress={() => navigation.navigate('CropProgress', { crop: item })}
     >
       <View style={styles.cardContent}>
-        {/* Left Side: Icon/Image Placeholder */}
         <View style={styles.iconContainer}>
           <Image 
-            source={require('../../assets/ZaraiVerse.png')} // Fallback icon
+            source={require('../../assets/ZaraiVerse.png')} 
             style={styles.cropIcon} 
           />
         </View>
 
-        {/* Center: Details */}
         <View style={styles.infoContainer}>
           <Text style={styles.cropName}>{item.name}</Text>
           <View style={styles.dateRow}>
@@ -79,9 +93,12 @@ export default function MyCropsScreen({ navigation }) {
               Planted: {format(item.plantedDate, 'MMM d, yyyy')}
             </Text>
           </View>
+          {/* Show Status explicitly for debugging */}
+          <Text style={{fontSize: 12, color: '#2E8B57', marginTop: 2}}>
+            Status: {item.status}
+          </Text>
         </View>
 
-        {/* Right Side: Health Status Badge */}
         <View style={[styles.statusBadge, { backgroundColor: getHealthColor(item.health) + '20' }]}>
           <View style={[styles.statusDot, { backgroundColor: getHealthColor(item.health) }]} />
           <Text style={[styles.statusText, { color: getHealthColor(item.health) }]}>
@@ -104,7 +121,6 @@ export default function MyCropsScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      {/* Top Banner for Expert Help */}
       <LinearGradient
         colors={['#E8F5E9', '#FFFFFF']}
         style={styles.banner}
@@ -121,7 +137,7 @@ export default function MyCropsScreen({ navigation }) {
         </TouchableOpacity>
       </LinearGradient>
 
-      <Text style={styles.sectionHeader}>My Active Crops ({crops.length})</Text>
+      <Text style={styles.sectionHeader}>My Crops ({crops.length})</Text>
 
       <FlatList
         data={crops}
@@ -131,12 +147,14 @@ export default function MyCropsScreen({ navigation }) {
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Ionicons name="leaf-outline" size={60} color="#ccc" />
-            <Text style={styles.emptyText}>No crops yet. Start planting!</Text>
+            <Text style={styles.emptyText}>No crops found for this user.</Text>
+            <Text style={{fontSize:12, color:'#999', textAlign:'center', marginTop:5}}>
+              User ID: {user?.uid.slice(0,8)}...
+            </Text>
           </View>
         }
       />
 
-      {/* Modern Floating Action Button (FAB) */}
       <TouchableOpacity
         style={styles.fab}
         onPress={() => navigation.navigate('AddCrop')}
@@ -154,105 +172,28 @@ export default function MyCropsScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F5F7FA',
-  },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  banner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
+  container: { flex: 1, backgroundColor: '#F5F7FA' },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  banner: { flexDirection: 'row', alignItems: 'center', padding: 20, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
   bannerTitle: { fontSize: 16, fontWeight: '700', color: '#2E8B57' },
   bannerText: { fontSize: 13, color: '#555', marginTop: 2 },
-  bannerButton: {
-    backgroundColor: '#2E8B57',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-  },
+  bannerButton: { backgroundColor: '#2E8B57', paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20 },
   bannerButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 12 },
-  
-  sectionHeader: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#333',
-    marginHorizontal: 20,
-    marginTop: 20,
-    marginBottom: 10,
-  },
+  sectionHeader: { fontSize: 18, fontWeight: '700', color: '#333', marginHorizontal: 20, marginTop: 20, marginBottom: 10 },
   list: { paddingHorizontal: 20, paddingBottom: 100 },
-  
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    marginBottom: 12,
-    padding: 15,
-    // Modern Shadow
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  cardContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  iconContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 12,
-    backgroundColor: '#F1F8E9',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 15,
-  },
+  card: { backgroundColor: '#fff', borderRadius: 16, marginBottom: 12, padding: 15, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 3 },
+  cardContent: { flexDirection: 'row', alignItems: 'center' },
+  iconContainer: { width: 50, height: 50, borderRadius: 12, backgroundColor: '#F1F8E9', justifyContent: 'center', alignItems: 'center', marginRight: 15 },
   cropIcon: { width: 30, height: 30, resizeMode: 'contain' },
-  
   infoContainer: { flex: 1 },
   cropName: { fontSize: 16, fontWeight: '700', color: '#333' },
   dateRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
   cropDate: { fontSize: 12, color: '#888', marginLeft: 4 },
-
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
-  },
+  statusBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12 },
   statusDot: { width: 8, height: 8, borderRadius: 4, marginRight: 6 },
   statusText: { fontSize: 12, fontWeight: '600' },
-
   emptyState: { alignItems: 'center', marginTop: 50 },
   emptyText: { color: '#999', fontSize: 16, marginTop: 10 },
-
-  fab: {
-    position: 'absolute',
-    right: 20,
-    bottom: 20,
-    borderRadius: 30,
-    // Shadow for FAB
-    shadowColor: '#2E8B57',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  fabGradient: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  fab: { position: 'absolute', right: 20, bottom: 20, borderRadius: 30, shadowColor: '#2E8B57', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 8 },
+  fabGradient: { width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center' },
 });

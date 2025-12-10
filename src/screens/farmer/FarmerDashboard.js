@@ -1,3 +1,4 @@
+// src/screens/farmer/FarmerDashboard.js
 import React, { useContext } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,9 +15,11 @@ export default function FarmerDashboard({ navigation }) {
   };
 
   const dashboardItems = [
+    // --- ✅ REVERTED: Keeps pointing to 'CropProgress' ---
+    // The CropProgress screen will now handle fetching data automatically.
     { title: t('cropProgress'), icon: 'leaf', screen: 'CropProgress', colors: ['#66BB6A', '#43A047'] },
-    // --- NEW: My Fields Card ---
-    { title: 'My Fields', icon: 'map', screen: 'MyFields', colors: ['#8D6E63', '#5D4037'] }, // Brown for Land
+    
+    { title: 'My Fields', icon: 'map', screen: 'MyFields', colors: ['#8D6E63', '#5D4037'] },
     { title: 'Marketplace', icon: 'storefront', screen: 'Marketplace', colors: ['#FFA726', '#FB8C00'] },
     { title: t('cart'), icon: 'cart', screen: 'Cart', colors: ['#FF7043', '#E64A19'] },
     { title: t('reqPrescription'), icon: 'medkit', screen: 'RequestPrescription', colors: ['#42A5F5', '#1E88E5'] },
