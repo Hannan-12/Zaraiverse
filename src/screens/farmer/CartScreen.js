@@ -1,43 +1,15 @@
-import React, { useContext, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useCart } from '../../contexts/CartContext';
-import { AuthContext } from '../../contexts/AuthContext';
-import { db } from '../../services/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 export default function CartScreen({ navigation }) {
-  const { cartItems, updateQuantity, removeFromCart, getCartTotal, clearCart } = useCart();
-  const { user } = useContext(AuthContext);
-  const [loading, setLoading] = useState(false);
+  const { cartItems, updateQuantity, removeFromCart, getCartTotal } = useCart();
 
-  const handleCheckout = async () => {
+  // --- CHANGED: Navigation instead of immediate checkout ---
+  const goToPayment = () => {
     if (cartItems.length === 0) return;
-    setLoading(true);
-
-    try {
-      // Create a single order containing all items
-      // In a complex app, you might split orders by Seller ID
-      const orderData = {
-        userId: user.uid,
-        userName: user.displayName || user.email,
-        items: cartItems,
-        totalAmount: getCartTotal(),
-        status: 'Pending',
-        createdAt: serverTimestamp(),
-      };
-
-      await addDoc(collection(db, 'orders'), orderData);
-      
-      clearCart();
-      Alert.alert('Success', 'Your order has been placed successfully!');
-      navigation.navigate('Orders'); // Navigate to Orders history
-    } catch (error) {
-      console.error(error);
-      Alert.alert('Error', 'Could not place order. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+    navigation.navigate('Payment'); // Navigate to the Payment Screen
   };
 
   const renderItem = ({ item }) => (
@@ -82,16 +54,13 @@ export default function CartScreen({ navigation }) {
             <Text style={styles.totalLabel}>Total:</Text>
             <Text style={styles.totalAmount}>Rs. {getCartTotal()}</Text>
           </View>
+          
           <TouchableOpacity 
             style={styles.checkoutBtn} 
-            onPress={handleCheckout}
-            disabled={loading}
+            onPress={goToPayment}
           >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.checkoutText}>Place Order (COD)</Text>
-            )}
+            <Text style={styles.checkoutText}>Proceed to Payment</Text>
+            <Ionicons name="arrow-forward" size={20} color="#fff" style={{marginLeft: 10}}/>
           </TouchableOpacity>
         </View>
       )}
@@ -103,42 +72,24 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8FFF9' },
   list: { padding: 16 },
   itemCard: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 10,
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    elevation: 2,
+    flexDirection: 'row', backgroundColor: '#fff', borderRadius: 10, padding: 15,
+    marginBottom: 10, alignItems: 'center', justifyContent: 'space-between', elevation: 2,
   },
   itemTitle: { fontSize: 16, fontWeight: 'bold', color: '#333' },
   itemPrice: { color: '#2E8B57', fontWeight: '600', marginTop: 4 },
   controls: { flexDirection: 'row', alignItems: 'center' },
-  qtyBtn: { 
-    padding: 8, 
-    backgroundColor: '#f0f0f0', 
-    borderRadius: 5, 
-    marginHorizontal: 5 
-  },
+  qtyBtn: { padding: 8, backgroundColor: '#f0f0f0', borderRadius: 5, marginHorizontal: 5 },
   qtyText: { fontSize: 16, fontWeight: 'bold', marginHorizontal: 5 },
   deleteBtn: { backgroundColor: '#FFEBEE', marginLeft: 15 },
   emptyContainer: { alignItems: 'center', marginTop: 100 },
   emptyText: { color: '#888', fontSize: 16, marginTop: 10 },
-  footer: {
-    padding: 20,
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
-  },
+  footer: { padding: 20, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#eee' },
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 },
   totalLabel: { fontSize: 18, color: '#333' },
   totalAmount: { fontSize: 20, fontWeight: 'bold', color: '#2E8B57' },
   checkoutBtn: {
-    backgroundColor: '#2E8B57',
-    paddingVertical: 15,
-    borderRadius: 10,
-    alignItems: 'center',
+    backgroundColor: '#2E8B57', paddingVertical: 15, borderRadius: 10,
+    alignItems: 'center', flexDirection: 'row', justifyContent: 'center'
   },
   checkoutText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
 });

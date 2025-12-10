@@ -1,179 +1,203 @@
-// src/screens/farmer/KnowledgeHubScreen.js
 import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  // --- REMOVED: ScrollView ---
   TextInput,
   TouchableOpacity,
   FlatList,
   Image,
   ActivityIndicator,
-  Alert,
-  RefreshControl, // --- ADDED: For pull-to-refresh ---
-  ScrollView, // --- ADDED: For the horizontal category list ---
+  RefreshControl,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { formatDistanceToNow } from 'date-fns';
+import { db } from '../../services/firebase';
+import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
 
-// --- API Key ---
-const API_KEY = 'efde50a7762452d76114e7feb83e9026';
-
-// --- UPDATED: Categories now have query-friendly names ---
+// --- Categories matching Admin Panel + Videos ---
 const categories = [
-  'Crops Farming',
-  'Pest Control',
-  'Irrigation',
-  'Soil Health',
-  'Agriculture Technology',
+  'General',
+  'Crops',
+  'Pests',
+  'Tech',
+  'Farming Videos', 
+];
+
+// --- MOCK DATA FOR VIDEOS ---
+const MOCK_VIDEOS = [
+  {
+    id: 'v1',
+    title: 'Modern Wheat Harvesting Techniques',
+    duration: '5:20',
+    thumbnail: 'https://placehold.co/600x400/2E8B57/FFFFFF?text=Wheat+Harvest',
+    source: 'AgriExpert PK',
+    views: '12K',
+    publishedAt: new Date(Date.now() - 86400000).toISOString(),
+  },
+  {
+    id: 'v2',
+    title: 'How to Prevent Rust in Wheat Crop',
+    duration: '8:45',
+    thumbnail: 'https://placehold.co/600x400/E67E22/FFFFFF?text=Pest+Control',
+    source: 'Zarai Tips',
+    views: '5.4K',
+    publishedAt: new Date(Date.now() - 172800000).toISOString(),
+  },
+  {
+    id: 'v3',
+    title: 'Best Irrigation Schedule for Rice',
+    duration: '6:10',
+    thumbnail: 'https://placehold.co/600x400/42A5F5/FFFFFF?text=Irrigation',
+    source: 'Farming 101',
+    views: '8.9K',
+    publishedAt: new Date(Date.now() - 432000000).toISOString(),
+  },
 ];
 
 export default function KnowledgeHubScreen({ navigation }) {
   const [articles, setArticles] = useState([]);
-  const [loading, setLoading] = useState(true); // For initial load
+  const [videos, setVideos] = useState([]);
+  const [loading, setLoading] = useState(true);
+  
+  const [selectedCategory, setSelectedCategory] = useState('General');
+  const [refreshing, setRefreshing] = useState(false);
 
-  // --- NEW STATES for pagination and categories ---
-  const [selectedCategory, setSelectedCategory] = useState('Crops Farming');
-  const [page, setPage] = useState(1);
-  const [loadingMore, setLoadingMore] = useState(false); // For pagination spinner
-  const [hasMore, setHasMore] = useState(true); // To stop fetching if no more results
-  const [refreshing, setRefreshing] = useState(false); // For pull-to-refresh
-
-  // --- ✅ NEW: Safe date formatting function ---
   const safeFormatDate = (dateString) => {
     try {
       const date = new Date(dateString);
-      if (isNaN(date.getTime())) { // Check if date is invalid
-        return 'just now'; // Fallback for invalid date
-      }
+      if (isNaN(date.getTime())) return 'just now';
       return `${formatDistanceToNow(date)} ago`;
     } catch (e) {
-      return 'just now'; // Fallback for any error
+      return 'just now';
     }
   };
 
-  // --- ✅ MODIFIED: Fetch function now handles pagination and categories ---
-  const fetchArticles = async (query, pageNum, isReset = false) => {
-    if (API_KEY === 'PASTE_YOUR_GNEWS.IO_API_KEY_HERE') {
-      Alert.alert('API Key Missing', 'Please add your GNews.io key.');
-      setLoading(false);
-      return;
-    }
-
-    // Set loading state
-    if (isReset) {
-      setLoading(true);
-      setHasMore(true); // Reset 'hasMore' on new category
-    } else {
-      setLoadingMore(true);
-    }
-
-    try {
-      const response = await fetch(
-        `https://gnews.io/api/v4/search?q=${encodeURIComponent(
-          query
-        )}&lang=en&sortby=publishedAt&page=${pageNum}&apikey=${API_KEY}`
-      );
-      const json = await response.json();
-
-      if (json.articles) {
-        const validArticles = json.articles.filter(
-          (article) => article.title && article.title !== '[Removed]' && article.image
-        );
-        
-        // If we got no articles back, stop loading more
-        if (validArticles.length === 0) {
-          setHasMore(false);
-        }
-
-        // Add new articles to the list
-        setArticles((prevArticles) =>
-          isReset ? validArticles : [...prevArticles, ...validArticles]
-        );
-      } else {
-        setHasMore(false); // Stop fetching if API returns an error
-        Alert.alert('Error', json.errors ? json.errors[0] : 'Could not fetch articles.');
-      }
-    } catch (error) {
-      console.error('Error fetching articles: ', error);
-      Alert.alert('Error', 'Could not fetch articles. Check your connection.');
-    } finally {
-      setLoading(false);
-      setLoadingMore(false);
-      setRefreshing(false);
-    }
-  };
-
-  // --- ✅ NEW: Effect to fetch articles when category changes ---
+  // --- FETCH FROM FIREBASE ---
   useEffect(() => {
-    // This runs when 'selectedCategory' changes
-    setPage(1); // Reset page to 1
-    fetchArticles(selectedCategory, 1, true); // Fetch with reset
-  }, [selectedCategory]); // Dependency
+    let unsubscribe;
 
-  // --- ✅ NEW: Handler for pull-to-refresh ---
+    const fetchData = async () => {
+      setLoading(true);
+
+      if (selectedCategory === 'Farming Videos') {
+        // Simulate fetching videos
+        setTimeout(() => {
+          setVideos(MOCK_VIDEOS);
+          setLoading(false);
+          setRefreshing(false);
+        }, 500);
+      } else {
+        // Fetch Blogs from Firestore
+        try {
+          const blogsRef = collection(db, 'blogs');
+          // Query: Filter by category and sort by date
+          // Note: If you get a "Missing Index" error in console, remove the 'orderBy' temporarily or create the index link provided in console.
+          const q = query(
+            blogsRef, 
+            where('category', '==', selectedCategory),
+            orderBy('createdAt', 'desc')
+          );
+
+          unsubscribe = onSnapshot(q, (snapshot) => {
+            const blogsList = snapshot.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data()
+            }));
+            setArticles(blogsList);
+            setLoading(false);
+            setRefreshing(false);
+          }, (error) => {
+            console.error("Error fetching blogs:", error);
+            setLoading(false);
+            setRefreshing(false);
+          });
+
+        } catch (error) {
+          console.error("Error setting up listener:", error);
+          setLoading(false);
+          setRefreshing(false);
+        }
+      }
+    };
+
+    fetchData();
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [selectedCategory]);
+
   const onRefresh = () => {
     setRefreshing(true);
-    setPage(1);
-    fetchArticles(selectedCategory, 1, true); // Fetch page 1 with reset
+    // Re-trigger effect by momentarily resetting category or just letting the snapshot handle it. 
+    // For Firestore onSnapshot, it's real-time, but we can simulate a reload for videos.
+    if (selectedCategory === 'Farming Videos') {
+      setTimeout(() => setRefreshing(false), 1000);
+    } else {
+      // Real-time listener updates automatically, just stop spinner
+      setTimeout(() => setRefreshing(false), 500);
+    }
   };
 
-  // --- ✅ NEW: Handler for "Load More" ---
-  const handleLoadMore = () => {
-    // Don't fetch if already loading or no more articles
-    if (loadingMore || !hasMore) return;
-
-    const newPage = page + 1;
-    setPage(newPage);
-    fetchArticles(selectedCategory, newPage, false); // Fetch next page
+  const handleVideoPress = (videoTitle) => {
+    // In a real app, navigation.navigate('VideoPlayer', { url: ... })
+    alert(`Playing: ${videoTitle}`);
   };
 
-  // --- ✅ NEW: Handler for tapping a category ---
-  const handleCategoryPress = (category) => {
-    setSelectedCategory(category); // This will trigger the useEffect
-  };
+  // --- RENDERERS ---
 
   const renderArticleCard = ({ item }) => (
     <TouchableOpacity
       style={styles.card}
       onPress={() => navigation.navigate('BlogDetails', { blog: item })}>
-      <Image
-        source={{
-          uri:
-            item.image ||
-            'https://placehold.co/600x400/E8F5E9/2e7d32?text=Blog+Image',
-        }}
-        style={styles.cardImage}
+      <Image 
+        source={{ uri: item.image || 'https://placehold.co/600x400/E8F5E9/2e7d32?text=ZaraiVerse+Blog' }} 
+        style={styles.cardImage} 
       />
       <View style={styles.cardContent}>
-        <Text style={styles.cardCategory}>{item.source.name || 'General'}</Text>
-        <Text style={styles.cardTitle}>{item.title}</Text>
+        <Text style={styles.cardCategory}>{item.category || 'General'}</Text>
+        <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
         <Text style={styles.cardAuthor}>
-          By {item.source.name || 'ZaraiVerse Expert'} •{' '}
-          {/* --- ✅ MODIFIED: Use safe date function --- */}
-          {safeFormatDate(item.publishedAt)}
+          {item.source?.name || 'Admin'} • {safeFormatDate(item.publishedAt || item.createdAt?.toDate())}
         </Text>
       </View>
     </TouchableOpacity>
   );
 
-  // --- ✅ NEW: Header component for the FlatList ---
-  // This contains all the content that was above the list
+  const renderVideoCard = ({ item }) => (
+    <TouchableOpacity style={styles.videoCard} onPress={() => handleVideoPress(item.title)}>
+      <View style={styles.thumbnailContainer}>
+        <Image source={{ uri: item.thumbnail }} style={styles.videoThumbnail} />
+        <View style={styles.playIconOverlay}>
+          <Ionicons name="play-circle" size={40} color="rgba(255,255,255,0.9)" />
+        </View>
+        <View style={styles.durationBadge}>
+          <Text style={styles.durationText}>{item.duration}</Text>
+        </View>
+      </View>
+      <View style={styles.videoInfo}>
+        <Text style={styles.videoTitle} numberOfLines={2}>{item.title}</Text>
+        <Text style={styles.videoMeta}>
+          {item.source} • {item.views} views • {safeFormatDate(item.publishedAt)}
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
+
   const renderListHeader = () => (
     <>
       <Text style={styles.header}>📚 Knowledge Hub</Text>
-      {/* Search Bar */}
+      
       <View style={styles.searchContainer}>
         <Ionicons name="search" size={20} color="#999" style={styles.searchIcon} />
         <TextInput
-          placeholder="Search for articles, guides..."
+          placeholder="Search for articles, videos..."
           style={styles.searchInput}
-          // We can add search logic here later
         />
       </View>
 
-      {/* Categories */}
       <Text style={styles.subHeader}>Categories</Text>
       <ScrollView
         horizontal
@@ -184,13 +208,22 @@ export default function KnowledgeHubScreen({ navigation }) {
             key={category}
             style={[
               styles.categoryChip,
-              selectedCategory === category && styles.categoryChipActive, // Active style
+              selectedCategory === category && styles.categoryChipActive,
             ]}
-            onPress={() => handleCategoryPress(category)}>
+            onPress={() => setSelectedCategory(category)}>
+            {category === 'Farming Videos' && (
+              <Ionicons 
+                name="play-circle-outline" 
+                size={16} 
+                color={selectedCategory === category ? '#FFF' : '#E67E22'} 
+                style={{marginRight: 6}}
+              />
+            )}
             <Text
               style={[
                 styles.categoryText,
                 selectedCategory === category && styles.categoryTextActive,
+                category === 'Farming Videos' && selectedCategory !== category && { color: '#E67E22' }
               ]}>
               {category}
             </Text>
@@ -198,158 +231,90 @@ export default function KnowledgeHubScreen({ navigation }) {
         ))}
       </ScrollView>
 
-      {/* Featured Articles */}
-      <Text style={styles.subHeader}>Featured Articles</Text>
-
-      {/* Show initial loading spinner */}
-      {loading && page === 1 && (
-        <ActivityIndicator size="large" color="#2e7d32" style={{ marginVertical: 20 }} />
-      )}
+      <Text style={styles.subHeader}>
+        {selectedCategory === 'Farming Videos' ? 'Latest Videos' : `Latest in ${selectedCategory}`}
+      </Text>
     </>
   );
 
-  // --- ✅ NEW: Footer component for "Loading More..." spinner ---
-  const renderListFooter = () => {
-    if (!loadingMore) return null;
-    return (
-      <ActivityIndicator size="small" color="#2e7d32" style={{ marginVertical: 20 }} />
-    );
-  };
+  // --- MAIN RENDER ---
+  const isVideoMode = selectedCategory === 'Farming Videos';
 
-  // --- ✅ MODIFIED: Return a FlatList instead of ScrollView ---
   return (
     <FlatList
       style={styles.outerContainer}
-      data={articles}
-      renderItem={renderArticleCard}
-      keyExtractor={(item) => item.url}
-      ListHeaderComponent={renderListHeader} // All content above the list
-      ListFooterComponent={renderListFooter} // "Loading more" spinner
+      data={isVideoMode ? videos : articles}
+      renderItem={isVideoMode ? renderVideoCard : renderArticleCard}
+      keyExtractor={(item) => item.id}
+      ListHeaderComponent={renderListHeader}
       ListEmptyComponent={
-        !loading && ( // Only show if not loading
-          <Text style={styles.emptyText}>
-            No articles found for "{selectedCategory}".
-          </Text>
+        !loading && (
+          <View style={styles.emptyContainer}>
+            <Ionicons name={isVideoMode ? "videocam-off-outline" : "document-text-outline"} size={50} color="#ccc" />
+            <Text style={styles.emptyText}>
+              No {isVideoMode ? 'videos' : 'articles'} found for "{selectedCategory}".
+            </Text>
+          </View>
         )
       }
-      onEndReached={handleLoadMore} // Call load more
-      onEndReachedThreshold={0.5} // How close to bottom to trigger
       refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={onRefresh} // Pull-to-refresh
-          colors={['#2e7d32']} // Spinner color
-        />
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#2e7d32']} />
       }
     />
   );
 }
 
-// --- ✅ UPDATED: Styles ---
 const styles = StyleSheet.create({
-  outerContainer: {
-    flex: 1,
-    backgroundColor: '#F8F9FA',
-    paddingHorizontal: 20, // Add padding here
-  },
-  // 'container' style is no longer needed
-  header: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 20,
-    paddingTop: 20, // Add padding from status bar
-  },
+  outerContainer: { flex: 1, backgroundColor: '#F8F9FA', paddingHorizontal: 20 },
+  header: { fontSize: 26, fontWeight: 'bold', color: '#333', marginBottom: 20, paddingTop: 20 },
   searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    paddingHorizontal: 15,
-    marginBottom: 25,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 12,
+    paddingHorizontal: 15, marginBottom: 25, elevation: 2, shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 3,
   },
-  searchIcon: {
-    marginRight: 10,
-  },
-  searchInput: {
-    flex: 1,
-    height: 50,
-    fontSize: 16,
-  },
-  subHeader: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 15,
-  },
-  categoriesContainer: {
-    marginBottom: 25,
-  },
+  searchIcon: { marginRight: 10 },
+  searchInput: { flex: 1, height: 50, fontSize: 16 },
+  subHeader: { fontSize: 20, fontWeight: 'bold', color: '#333', marginBottom: 15 },
+  categoriesContainer: { marginBottom: 25 },
   categoryChip: {
-    backgroundColor: '#E8F5E9', // Light green
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 20,
-    marginRight: 10,
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#E8F5E9', 
+    paddingVertical: 10, paddingHorizontal: 20, borderRadius: 20, marginRight: 10,
   },
-  categoryChipActive: {
-    backgroundColor: '#2e7d32', // Dark green for active
-  },
-  categoryText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#2e7d32', // Dark green
-  },
-  categoryTextActive: {
-    color: '#FFFFFF', // White text for active
-  },
+  categoryChipActive: { backgroundColor: '#2e7d32' },
+  categoryText: { fontSize: 14, fontWeight: '600', color: '#2e7d32' },
+  categoryTextActive: { color: '#FFFFFF' },
+  
+  // Article Card Styles
   card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 15,
-    marginBottom: 20,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
+    backgroundColor: '#FFFFFF', borderRadius: 15, marginBottom: 20, elevation: 3,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 5,
   },
-  cardImage: {
-    width: '100%',
-    height: 180,
-    borderTopLeftRadius: 15,
-    borderTopRightRadius: 15,
+  cardImage: { width: '100%', height: 180, borderTopLeftRadius: 15, borderTopRightRadius: 15, backgroundColor: '#eee' },
+  cardContent: { padding: 15 },
+  cardCategory: { fontSize: 12, fontWeight: 'bold', color: '#2e7d32', textTransform: 'uppercase', marginBottom: 5 },
+  cardTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 5, color: '#333' },
+  cardAuthor: { fontSize: 14, color: '#777' },
+
+  // Video Card Styles
+  videoCard: {
+    flexDirection: 'row', backgroundColor: '#fff', marginBottom: 16, borderRadius: 12,
+    overflow: 'hidden', elevation: 2
   },
-  cardContent: {
-    padding: 15,
+  thumbnailContainer: { width: 120, height: 90, position: 'relative' },
+  videoThumbnail: { width: '100%', height: '100%', backgroundColor: '#000' },
+  playIconOverlay: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.2)'
   },
-  cardCategory: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#2e7d32',
-    textTransform: 'uppercase',
-    marginBottom: 5,
+  durationBadge: {
+    position: 'absolute', bottom: 5, right: 5, backgroundColor: 'rgba(0,0,0,0.8)',
+    paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4
   },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 5,
-    color: '#333',
-  },
-  cardAuthor: {
-    fontSize: 14,
-    color: '#777',
-  },
-  emptyText: {
-    textAlign: 'center',
-    color: '#777',
-    marginTop: 20,
-    fontSize: 16,
-  },
+  durationText: { color: '#fff', fontSize: 10, fontWeight: 'bold' },
+  videoInfo: { flex: 1, padding: 10, justifyContent: 'center' },
+  videoTitle: { fontSize: 15, fontWeight: 'bold', color: '#333', marginBottom: 4 },
+  videoMeta: { fontSize: 12, color: '#666' },
+
+  emptyContainer: { alignItems: 'center', marginTop: 50 },
+  emptyText: { textAlign: 'center', color: '#777', marginTop: 20, fontSize: 16 },
 });
-
-
