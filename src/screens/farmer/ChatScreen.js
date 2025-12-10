@@ -8,9 +8,11 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator
+  ActivityIndicator,
+  StatusBar
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { AuthContext } from '../../contexts/AuthContext';
 import { db } from '../../services/firebase';
 import {
@@ -19,15 +21,12 @@ import {
   query,
   orderBy,
   onSnapshot,
-  Timestamp,
   serverTimestamp
 } from 'firebase/firestore';
 
 export default function ChatScreen({ route, navigation }) {
   const { user } = useContext(AuthContext);
-  // Default to a 'general' chat room if no specific ID is passed
-  // In a real app, you would pass {Pd: 'expert_id'} via route.params
-  const chatId = route.params?.chatId || 'general_support'; 
+  const chatId = route.params?.chatId || 'general_support';
   const chatTitle = route.params?.title || 'Expert Support';
 
   const [messages, setMessages] = useState([]);
@@ -35,13 +34,18 @@ export default function ChatScreen({ route, navigation }) {
   const [loading, setLoading] = useState(true);
   const flatListRef = useRef();
 
+  // Customize Header
   useEffect(() => {
-    navigation.setOptions({ title: chatTitle });
+    navigation.setOptions({
+      headerTitle: chatTitle,
+      headerStyle: { backgroundColor: '#2E8B57' },
+      headerTintColor: '#fff',
+      headerTitleStyle: { fontWeight: 'bold' },
+    });
+  }, [navigation, chatTitle]);
 
-    // Reference to the messages sub-collection
+  useEffect(() => {
     const messagesRef = collection(db, 'chats', chatId, 'messages');
-    
-    // Query messages ordered by time
     const q = query(messagesRef, orderBy('createdAt', 'asc'));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -51,10 +55,6 @@ export default function ChatScreen({ route, navigation }) {
       }));
       setMessages(msgs);
       setLoading(false);
-      // Scroll to bottom on new message
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
     });
 
     return () => unsubscribe();
@@ -64,7 +64,7 @@ export default function ChatScreen({ route, navigation }) {
     if (inputText.trim().length === 0) return;
 
     const text = inputText;
-    setInputText(''); // Clear input immediately
+    setInputText('');
 
     try {
       const messagesRef = collection(db, 'chats', chatId, 'messages');
@@ -73,37 +73,58 @@ export default function ChatScreen({ route, navigation }) {
         createdAt: serverTimestamp(),
         senderId: user.uid,
         senderName: user.displayName || user.email,
-        role: user.role || 'farmer' 
+        role: user.role || 'farmer'
       });
     } catch (error) {
       console.error("Error sending message:", error);
-      // Ideally show a small toast error here
     }
   };
 
   const renderMessage = ({ item }) => {
     const isMe = item.senderId === user.uid;
+    const timeString = item.createdAt 
+      ? new Date(item.createdAt.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
+      : '...';
+
     return (
-      <View style={[styles.messageBubble, isMe ? styles.myMessage : styles.theirMessage]}>
-        {!isMe && <Text style={styles.senderName}>{item.senderName}</Text>}
-        <Text style={[styles.messageText, isMe ? styles.myMessageText : styles.theirMessageText]}>
-          {item.text}
-        </Text>
-        <Text style={styles.timestamp}>
-          {item.createdAt ? new Date(item.createdAt.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '...'}
-        </Text>
+      <View style={[
+        styles.messageRow, 
+        isMe ? styles.rowRight : styles.rowLeft
+      ]}>
+        {!isMe && (
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{item.senderName ? item.senderName[0].toUpperCase() : 'E'}</Text>
+          </View>
+        )}
+        
+        <View style={[
+          styles.bubble, 
+          isMe ? styles.bubbleRight : styles.bubbleLeft
+        ]}>
+          {!isMe && <Text style={styles.senderName}>{item.senderName}</Text>}
+          <Text style={[styles.messageText, isMe ? styles.textRight : styles.textLeft]}>
+            {item.text}
+          </Text>
+          <Text style={[styles.timeText, isMe ? styles.timeRight : styles.timeLeft]}>
+            {timeString}
+          </Text>
+        </View>
       </View>
     );
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
-    >
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" />
+      
+      {/* Background Gradient for subtle effect */}
+      <LinearGradient
+        colors={['#E8F5E9', '#F1F8E9']} // Very light green gradient
+        style={StyleSheet.absoluteFill}
+      />
+
       {loading ? (
-        <ActivityIndicator size="large" color="#2E8B57" style={{ marginTop: 20 }} />
+        <ActivityIndicator size="large" color="#2E8B57" style={styles.loader} />
       ) : (
         <FlatList
           ref={flatListRef}
@@ -112,87 +133,128 @@ export default function ChatScreen({ route, navigation }) {
           keyExtractor={item => item.id}
           contentContainerStyle={styles.listContent}
           onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+          onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
         />
       )}
 
-      <View style={styles.inputContainer}>
-        <TextInput
-          style={styles.input}
-          value={inputText}
-          onChangeText={setInputText}
-          placeholder="Type a message..."
-          placeholderTextColor="#999"
-          multiline
-        />
-        <TouchableOpacity style={styles.sendButton} onPress={sendMessage}>
-          <Ionicons name="send" size={20} color="#fff" />
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+      >
+        <View style={styles.inputArea}>
+          <TextInput
+            style={styles.input}
+            value={inputText}
+            onChangeText={setInputText}
+            placeholder="Type a message..."
+            placeholderTextColor="#888"
+            multiline
+          />
+          <TouchableOpacity 
+            style={[styles.sendButton, { backgroundColor: inputText.trim() ? '#2E8B57' : '#ccc' }]} 
+            onPress={sendMessage}
+            disabled={!inputText.trim()}
+          >
+            <Ionicons name="send" size={20} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F2F4F8' },
+  container: { flex: 1 },
+  loader: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   listContent: { padding: 15, paddingBottom: 20 },
-  messageBubble: {
-    maxWidth: '80%',
-    padding: 12,
+  
+  messageRow: {
+    flexDirection: 'row',
+    marginBottom: 12,
+    alignItems: 'flex-end',
+  },
+  rowRight: { justifyContent: 'flex-end' },
+  rowLeft: { justifyContent: 'flex-start' },
+
+  avatar: {
+    width: 32,
+    height: 32,
     borderRadius: 16,
-    marginBottom: 10,
+    backgroundColor: '#FFB74D', // Orange for experts/others
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
   },
-  myMessage: {
-    alignSelf: 'flex-end',
-    backgroundColor: '#2E8B57',
-    borderBottomRightRadius: 2,
-  },
-  theirMessage: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#FFFFFF',
-    borderBottomLeftRadius: 2,
+  avatarText: { color: '#fff', fontWeight: 'bold', fontSize: 14 },
+
+  bubble: {
+    maxWidth: '75%',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 18,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 1 },
+    shadowRadius: 1,
     elevation: 1,
   },
+  bubbleRight: {
+    backgroundColor: '#2E8B57', // Farm Green
+    borderBottomRightRadius: 2,
+  },
+  bubbleLeft: {
+    backgroundColor: '#FFFFFF',
+    borderBottomLeftRadius: 2,
+  },
+
   senderName: {
-    fontSize: 10,
-    color: '#F57C00',
-    marginBottom: 2,
-    fontWeight: 'bold'
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#FF9800',
+    marginBottom: 4,
   },
   messageText: {
     fontSize: 15,
+    lineHeight: 22,
   },
-  myMessageText: { color: '#FFFFFF' },
-  theirMessageText: { color: '#333333' },
-  timestamp: {
+  textRight: { color: '#fff' },
+  textLeft: { color: '#333' },
+
+  timeText: {
     fontSize: 10,
-    alignSelf: 'flex-end',
     marginTop: 4,
-    color: 'rgba(0,0,0,0.4)'
+    alignSelf: 'flex-end',
   },
-  inputContainer: {
+  timeRight: { color: 'rgba(255,255,255,0.7)' },
+  timeLeft: { color: 'rgba(0,0,0,0.4)' },
+
+  inputArea: {
     flexDirection: 'row',
-    alignItems: 'center',
     padding: 10,
+    paddingBottom: Platform.OS === 'ios' ? 20 : 10,
     backgroundColor: '#fff',
     borderTopWidth: 1,
-    borderTopColor: '#eee',
+    borderTopColor: '#f0f0f0',
+    alignItems: 'flex-end',
   },
   input: {
     flex: 1,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 20,
-    paddingHorizontal: 15,
-    paddingVertical: 10,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 24,
+    paddingHorizontal: 18,
+    paddingTop: 12,
+    paddingBottom: 12,
     maxHeight: 100,
-    marginRight: 10,
     fontSize: 16,
+    color: '#333',
+    marginRight: 10,
   },
   sendButton: {
-    backgroundColor: '#2E8B57',
-    width: 45,
-    height: 45,
-    borderRadius: 22.5,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: 2, // Align with input text
   },
 });

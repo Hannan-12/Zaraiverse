@@ -1,69 +1,144 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useContext, useState } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useCart } from '../../contexts/CartContext';
+import { AuthContext } from '../../contexts/AuthContext';
+import { db } from '../../services/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
-export default function CartScreen() {
+export default function CartScreen({ navigation }) {
+  const { cartItems, updateQuantity, removeFromCart, getCartTotal, clearCart } = useCart();
+  const { user } = useContext(AuthContext);
+  const [loading, setLoading] = useState(false);
+
+  const handleCheckout = async () => {
+    if (cartItems.length === 0) return;
+    setLoading(true);
+
+    try {
+      // Create a single order containing all items
+      // In a complex app, you might split orders by Seller ID
+      const orderData = {
+        userId: user.uid,
+        userName: user.displayName || user.email,
+        items: cartItems,
+        totalAmount: getCartTotal(),
+        status: 'Pending',
+        createdAt: serverTimestamp(),
+      };
+
+      await addDoc(collection(db, 'orders'), orderData);
+      
+      clearCart();
+      Alert.alert('Success', 'Your order has been placed successfully!');
+      navigation.navigate('Orders'); // Navigate to Orders history
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Error', 'Could not place order. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const renderItem = ({ item }) => (
+    <View style={styles.itemCard}>
+      <View style={styles.itemInfo}>
+        <Text style={styles.itemTitle}>{item.name}</Text>
+        <Text style={styles.itemPrice}>Rs. {item.price}</Text>
+      </View>
+      <View style={styles.controls}>
+        <TouchableOpacity onPress={() => updateQuantity(item.id, 'decrease')} style={styles.qtyBtn}>
+          <Ionicons name="remove" size={16} color="#333" />
+        </TouchableOpacity>
+        <Text style={styles.qtyText}>{item.quantity}</Text>
+        <TouchableOpacity onPress={() => updateQuantity(item.id, 'increase')} style={styles.qtyBtn}>
+          <Ionicons name="add" size={16} color="#333" />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => removeFromCart(item.id)} style={[styles.qtyBtn, styles.deleteBtn]}>
+          <Ionicons name="trash-outline" size={18} color="#C62828" />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
   return (
-    <LinearGradient
-      colors={['#E8F5E9', '#F8FFF9']}
-      style={styles.container}
-    >
-      <Ionicons name="cart-outline" size={60} color="#2E8B57" style={styles.icon} />
-      <Text style={styles.title}>🛒 Your Cart</Text>
-      <Text style={styles.subtitle}>
-        View and manage products added to your cart.
-      </Text>
-
-      <TouchableOpacity style={styles.button}>
-        <LinearGradient
-          colors={['#81C784', '#388E3C']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.buttonGradient}
-        >
-          <Text style={styles.buttonText}>Go to Checkout</Text>
-        </LinearGradient>
-      </TouchableOpacity>
-    </LinearGradient>
+    <View style={styles.container}>
+      <FlatList
+        data={cartItems}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.list}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Ionicons name="cart-outline" size={60} color="#ccc" />
+            <Text style={styles.emptyText}>Your cart is empty.</Text>
+          </View>
+        }
+      />
+      
+      {cartItems.length > 0 && (
+        <View style={styles.footer}>
+          <View style={styles.totalRow}>
+            <Text style={styles.totalLabel}>Total:</Text>
+            <Text style={styles.totalAmount}>Rs. {getCartTotal()}</Text>
+          </View>
+          <TouchableOpacity 
+            style={styles.checkoutBtn} 
+            onPress={handleCheckout}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.checkoutText}>Place Order (COD)</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-  },
-  icon: {
-    marginBottom: 20,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#2E8B57',
+  container: { flex: 1, backgroundColor: '#F8FFF9' },
+  list: { padding: 16 },
+  itemCard: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 15,
     marginBottom: 10,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#555',
-    textAlign: 'center',
-    marginBottom: 30,
-  },
-  button: {
-    width: '80%',
-    borderRadius: 25,
-    overflow: 'hidden',
-  },
-  buttonGradient: {
-    paddingVertical: 15,
     alignItems: 'center',
-    borderRadius: 25,
+    justifyContent: 'space-between',
+    elevation: 2,
   },
-  buttonText: {
-    color: '#fff',
-    fontSize: 17,
-    fontWeight: '600',
+  itemTitle: { fontSize: 16, fontWeight: 'bold', color: '#333' },
+  itemPrice: { color: '#2E8B57', fontWeight: '600', marginTop: 4 },
+  controls: { flexDirection: 'row', alignItems: 'center' },
+  qtyBtn: { 
+    padding: 8, 
+    backgroundColor: '#f0f0f0', 
+    borderRadius: 5, 
+    marginHorizontal: 5 
   },
+  qtyText: { fontSize: 16, fontWeight: 'bold', marginHorizontal: 5 },
+  deleteBtn: { backgroundColor: '#FFEBEE', marginLeft: 15 },
+  emptyContainer: { alignItems: 'center', marginTop: 100 },
+  emptyText: { color: '#888', fontSize: 16, marginTop: 10 },
+  footer: {
+    padding: 20,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+  },
+  totalRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 },
+  totalLabel: { fontSize: 18, color: '#333' },
+  totalAmount: { fontSize: 20, fontWeight: 'bold', color: '#2E8B57' },
+  checkoutBtn: {
+    backgroundColor: '#2E8B57',
+    paddingVertical: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  checkoutText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
 });
