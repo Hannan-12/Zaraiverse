@@ -23,7 +23,7 @@ export const AuthProvider = ({ children }) => {
             const userData = userDocSnap.data();
             
             // --- SECURITY CHECK ---
-            // EXCEPTION: If role is 'admin', allow access regardless of status.
+            // If role is 'admin', allow access regardless of status.
             if (userData.role !== 'admin' && userData.status !== 'active') {
               
               let message = "Your account is pending approval by an admin.";
@@ -41,8 +41,12 @@ export const AuthProvider = ({ children }) => {
               });
             }
           } else {
+            // ✅ FIX: Do NOT sign out immediately. 
+            // The profile might be in the process of being created (Registration flow).
+            // We just set user to null so the app stays on the Login screen, 
+            // but the Firebase Auth session remains alive for setDoc to work.
+            console.log("User profile not found yet (new registration?)");
             setUser(null); 
-            await signOut(auth);
           }
         } catch (error) {
           console.error("Error fetching user profile:", error);

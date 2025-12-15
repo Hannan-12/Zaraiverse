@@ -4,9 +4,12 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 // Screens
 import ExpertDashboard from '../screens/expert/ExpertDashboard';
-import PendingPrescriptions from '../screens/expert/PendingPrescriptions'; // New file below
-import ExpertChatList from '../screens/expert/ExpertChatList'; // New file below
+import PendingPrescriptions from '../screens/expert/PendingPrescriptions';
+import ExpertChatList from '../screens/expert/ExpertChatList';
 import ProfileScreen from '../screens/farmer/ProfileScreen'; // Reusing the generic profile
+
+// ✅ IMPORT FIX: Import the ChatScreen
+import ChatScreen from '../screens/chat/ChatScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -34,6 +37,14 @@ export default function ExpertStack() {
         component={ExpertChatList} 
         options={{ title: 'Farmer Chats' }} 
       />
+      
+      {/* ✅ ADD THIS SCREEN so navigation works */}
+      <Stack.Screen 
+        name="ChatScreen" 
+        component={ChatScreen} 
+        options={{ title: 'Chat' }} 
+      />
+
       <Stack.Screen 
         name="Profile" 
         component={ProfileScreen} 

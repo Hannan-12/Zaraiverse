@@ -9,7 +9,7 @@ import FarmerDashboard from '../screens/farmer/FarmerDashboard';
 // import MyCropsScreen from '../screens/farmer/MyCropsScreen'; 
 import TaskRemindersScreen from '../screens/farmer/TaskRemindersScreen';
 import WeatherForecastScreen from '../screens/farmer/WeatherForecastScreen';
-import ChatScreen from '../screens/farmer/ChatScreen';
+import ChatScreen from '../screens/chat/ChatScreen';
 import ProfileScreen from '../screens/farmer/ProfileScreen';
 
 // --- 2. ADD MyCropsStack import ---

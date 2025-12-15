@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { View, TextInput, Text, StyleSheet, Image, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
-import { signInWithEmailAndPassword, signOut } from 'firebase/auth'; // Import signOut
+import { signInWithEmailAndPassword, signOut } from 'firebase/auth'; 
 import { auth, db } from '../../services/firebase';
-import { doc, getDoc } from 'firebase/firestore'; // Import Firestore functions
+import { doc, getDoc } from 'firebase/firestore'; 
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
@@ -29,12 +29,11 @@ export default function LoginScreen({ navigation }) {
       if (userDocSnap.exists()) {
         const userData = userDocSnap.data();
         const role = userData.role || 'user';
-        // Treat missing status as 'pending' to match Admin panel logic
         const status = userData.status || 'pending'; 
 
         // 3. Logic: If NOT admin AND status is NOT active -> Block
         if (role !== 'admin' && status !== 'active') {
-          await signOut(auth); // Log them out immediately
+          await signOut(auth); 
           
           if (status === 'blocked') {
              Alert.alert("Access Denied", "Your account has been blocked by an admin.");
@@ -42,13 +41,22 @@ export default function LoginScreen({ navigation }) {
              Alert.alert("Access Denied", "Your account is pending approval by an admin.");
           }
           setLoading(false);
-          return; // Stop execution, don't navigate
+          return; 
         }
         
-        // If we get here, login is valid! AuthContext will handle navigation.
+        // Success: AuthContext will handle navigation
       } else {
-        // Fallback if no profile exists yet (shouldn't happen often)
+        // --- ✅ FIX STARTS HERE ---
+        // If profile is missing, we MUST stop the loader and show an error.
         console.warn("No user profile found in Firestore.");
+        Alert.alert("Login Error", "User profile not found. Please register again or contact support.");
+        
+        // Sign out so they aren't stuck in a "logged in but no profile" state
+        await signOut(auth);
+        
+        setLoading(false); // Stop the spinner!
+        return;
+        // --- ✅ FIX ENDS HERE ---
       }
 
     } catch (e) {
@@ -60,7 +68,6 @@ export default function LoginScreen({ navigation }) {
       }
       setLoading(false);
     }
-    // Note: If successful, AuthContext listener handles the redirect, so we don't set loading(false) here to prevent flicker.
   };
 
   return (
