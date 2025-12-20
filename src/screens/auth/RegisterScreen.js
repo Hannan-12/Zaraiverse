@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, ScrollView, Image, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { 
+  View, Text, TextInput, StyleSheet, ScrollView, Image, 
+  TouchableOpacity, Alert, ActivityIndicator 
+} from 'react-native';
+import { createUserWithEmailAndPassword, deleteUser } from 'firebase/auth'; // Added deleteUser for cleanup
 import { auth, db } from '../../services/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 
@@ -24,39 +27,49 @@ export default function RegisterScreen({ navigation }) {
     }
 
     setLoading(true);
+    let userCredential;
+
     try {
-      // --- ADMIN BACKDOOR CHECK ---
-      // If email is specific, make them Admin & Active immediately.
-      // Everyone else is Pending.
       const isAdminEmail = email.toLowerCase() === 'admin@zaraiverse.com';
-      
       const finalRole = isAdminEmail ? 'admin' : role;
       const finalStatus = isAdminEmail ? 'active' : 'pending';
 
       // 1. Create User in Firebase Auth
-      const cred = await createUserWithEmailAndPassword(auth, email, password);
+      userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
       
-      // 2. Save user profile to Firestore
-      await setDoc(doc(db, 'users', cred.user.uid), { 
-        name, 
-        email, 
-        role: finalRole,
-        status: finalStatus,
-        createdAt: new Date(),
-      });
+      try {
+        // 2. Save user profile to Firestore
+        await setDoc(doc(db, 'users', user.uid), { 
+          name, 
+          email, 
+          role: finalRole,
+          status: finalStatus,
+          createdAt: new Date(),
+        });
 
-      // 3. Success Message
-      if (isAdminEmail) {
-        Alert.alert("Welcome Admin", "Admin account created and activated automatically.");
-      } else {
-        Alert.alert(
-          "Registration Successful", 
-          "Your account is pending approval. You can login once an Admin approves your request."
-        );
+        // 3. Success Handling
+        if (isAdminEmail) {
+          Alert.alert("Welcome Admin", "Admin account created and activated.");
+          navigation.navigate('Login'); 
+        } else {
+          Alert.alert(
+            "Verification Required", 
+            "A 6-digit code has been sent to your email for verification."
+          );
+          // Navigate to OTP screen as requested
+          navigation.navigate('OTP', { email: email }); 
+        }
+
+      } catch (dbError) {
+        // ✅ CRITICAL FIX: Delete Auth user if Firestore write fails
+        // This prevents "Ghost Users" from being stuck in Auth without a DB profile
+        if (user) {
+          await deleteUser(user);
+        }
+        console.error("Firestore Write Error:", dbError);
+        Alert.alert("Registration Error", "Database profile creation failed. Please check your internet and try again.");
       }
-      
-      // Navigate to Login (or Dashboard if auto-login works, but Login is safer)
-      navigation.navigate('Login'); 
 
     } catch (e) {
       if (e.code === 'auth/email-already-in-use') {
@@ -127,7 +140,7 @@ export default function RegisterScreen({ navigation }) {
         {loading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.registerButtonText}>Register</Text>}
       </TouchableOpacity>
       
-      <TouchableOpacity style={styles.backToLoginContainer} onPress={() => navigation.goBack()}>
+      <TouchableOpacity style={styles.backToLoginContainer} onPress={() => navigation.navigate('Login')}>
         <Text style={styles.backToLoginText}>
           Already have an account? <Text style={styles.backToLoginLink}>Sign In</Text>
         </Text>
@@ -137,7 +150,7 @@ export default function RegisterScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 25, backgroundColor: '#FFFFFF' },
+  container: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 25, backgroundColor: '#FFFFFF', paddingBottom: 20 },
   logo: { width: 120, height: 120, alignSelf: 'center', marginBottom: 15 },
   title: { fontSize: 28, fontWeight: 'bold', textAlign: 'center', marginBottom: 25, color: '#000000' },
   inputContainer: { marginBottom: 15 },

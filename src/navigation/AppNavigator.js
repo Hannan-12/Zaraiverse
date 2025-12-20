@@ -5,12 +5,12 @@ import { AuthContext } from '../contexts/AuthContext';
 
 import LoginScreen from '../screens/auth/LoginScreen';
 import RegisterScreen from '../screens/auth/RegisterScreen';
+import OTPScreen from '../screens/auth/OTPScreen'; // New Import
 
-// --- STACKS ---
 import FarmerStack from './FarmerStack';
 import SellerStack from './SellerStack';
 import ExpertStack from './ExpertStack';
-import AdminStack from './AdminStack'; // <--- THIS LINE IS CRITICAL
+import AdminStack from './AdminStack';
 
 const Stack = createNativeStackNavigator();
 
@@ -18,7 +18,7 @@ const roleComponentMap = {
   farmer: FarmerStack,
   seller: SellerStack,
   expert: ExpertStack,
-  admin: AdminStack, // <--- This requires the import above
+  admin: AdminStack,
 };
 
 function LoadingScreen() {
@@ -36,7 +36,6 @@ export default function AppNavigator() {
     return <LoadingScreen />;
   }
 
-  // Select the correct stack based on user role
   const UserStackComponent = user ? roleComponentMap[user.role] : null;
 
   return (
@@ -47,6 +46,11 @@ export default function AppNavigator() {
         <>
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Register" component={RegisterScreen} />
+          <Stack.Screen 
+            name="OTP" 
+            component={OTPScreen} 
+            options={{ headerShown: true, title: 'Verification', headerTintColor: '#2E8B57' }} 
+          />
         </>
       )}
     </Stack.Navigator>
