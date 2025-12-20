@@ -1,8 +1,9 @@
+// src/services/emailService.js
 const EMAILJS_CONFIG = {
-  service_id: 'default_service', // Or your specific Service ID from EmailJS
+  service_id: 'service_oi1vsro', 
   template_id: 'template_q4ctoty',
-  user_id: 'IjGwE50SYxIfxPyoW',
-  accessToken: 'p0TZEez0rI0Vojr82fgEP'
+  user_id: 'IjGwE50SYxIfxPyoW', // Public Key
+  accessToken: 'p0TZEez0rI0Vojr82fgEP' // Private Key
 };
 
 export const sendOTP = async (userEmail, otpCode) => {
@@ -17,7 +18,7 @@ export const sendOTP = async (userEmail, otpCode) => {
         accessToken: EMAILJS_CONFIG.accessToken,
         template_params: {
           to_email: userEmail,
-          otp_code: otpCode, // Make sure your EmailJS template uses {{otp_code}}
+          otp_code: otpCode, // Ensure your EmailJS template uses {{otp_code}}
         },
       }),
     });
@@ -25,10 +26,13 @@ export const sendOTP = async (userEmail, otpCode) => {
     if (response.ok) {
       return { success: true };
     } else {
-      const errorData = await response.json();
-      return { success: false, error: errorData };
+      // ✅ FIXED: Use .text() instead of .json() to catch the error message
+      const errorText = await response.text();
+      console.error("EmailJS Error Response:", errorText);
+      return { success: false, error: errorText };
     }
   } catch (error) {
+    console.error("Fetch Error:", error);
     return { success: false, error: error.message };
   }
 };

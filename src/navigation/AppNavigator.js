@@ -1,19 +1,20 @@
-// src/navigation/AppNavigator.js
 import React, { useContext } from 'react';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createNativeStackNavigator } from '@react-navigation/native-stack'; // ✅ Correct Import
 import { View, ActivityIndicator } from 'react-native';
 import { AuthContext } from '../contexts/AuthContext';
 
+// Import Screens
 import LoginScreen from '../screens/auth/LoginScreen';
 import RegisterScreen from '../screens/auth/RegisterScreen';
 import OTPScreen from '../screens/auth/OTPScreen';
 
+// Import Role Stacks
 import FarmerStack from './FarmerStack';
 import SellerStack from './SellerStack';
 import ExpertStack from './ExpertStack';
 import AdminStack from './AdminStack';
 
-const Stack = createNativeStackNavigator();
+const Stack = createNativeStackNavigator(); // ✅ Initialize Stack here
 
 const roleComponentMap = {
   farmer: FarmerStack,
@@ -33,11 +34,7 @@ export default function AppNavigator() {
     );
   }
 
-  // Logic: 
-  // 1. No user? Show Auth (Login/Register)
-  // 2. User logged in but pending? Force OTP Screen
-  // 3. User logged in and active? Show Role Stack
-  
+  // 1. If user is not logged in
   if (!user) {
     return (
       <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -47,19 +44,17 @@ export default function AppNavigator() {
     );
   }
 
+  // 2. Logic for Admin Approval Workflow
+  // If user is 'pending', force them to stay on the OTP screen for verification
   if (user.status === 'pending' && user.role !== 'admin') {
     return (
-      <Stack.Navigator>
-        <Stack.Screen 
-          name="OTP" 
-          component={OTPScreen} 
-          initialParams={{ email: user.email }}
-          options={{ title: 'Verify Account', headerTintColor: '#2E8B57' }} 
-        />
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="OTP" component={OTPScreen} />
       </Stack.Navigator>
     );
   }
 
+  // 3. If user is 'active', show their specific Role Stack
   const UserStackComponent = roleComponentMap[user.role];
 
   return (
@@ -67,6 +62,7 @@ export default function AppNavigator() {
       {UserStackComponent ? (
         <Stack.Screen name="UserStack" component={UserStackComponent} />
       ) : (
+        // Fallback to Login if role is undefined
         <Stack.Screen name="Login" component={LoginScreen} />
       )}
     </Stack.Navigator>

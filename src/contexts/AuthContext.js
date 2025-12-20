@@ -1,11 +1,11 @@
-// src/contexts/AuthContext.js
 import React, { createContext, useEffect, useState, useContext } from 'react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { doc, onSnapshot } from 'firebase/snapshot';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { auth, db } from '../services/firebase';
 import { Alert } from 'react-native';
 
 export const AuthContext = createContext();
+export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -17,23 +17,29 @@ export const AuthProvider = ({ children }) => {
     const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
         const userDocRef = doc(db, 'users', firebaseUser.uid);
+        
         unsubProfile = onSnapshot(userDocRef, (docSnap) => {
           if (docSnap.exists()) {
             const userData = docSnap.data();
             
-            // Only force logout for BLOCKED users
+            // ✅ Only auto-logout if the user is BLOCKED. 
+            // Allow 'pending' and 'active' users to stay logged in.
             if (userData.status === 'blocked') {
               signOut(auth);
               setUser(null);
-              Alert.alert("Denied", "Your account is blocked.");
+              Alert.alert("Access Denied", "Your account has been blocked.");
             } else {
               setUser({ uid: firebaseUser.uid, email: firebaseUser.email, ...userData });
             }
           } else {
+            // Profile document creation might be in progress
             setUser({ uid: firebaseUser.uid, email: firebaseUser.email, status: 'pending' });
           }
           setIsLoading(false);
-        }, () => setIsLoading(false));
+        }, (error) => {
+          setIsLoading(false);
+          if (error.code === 'permission-denied') setUser(null);
+        });
       } else {
         if (unsubProfile) unsubProfile();
         setUser(null);
