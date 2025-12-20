@@ -1,3 +1,4 @@
+// src/contexts/AuthContext.js
 import React, { createContext, useEffect, useState, useContext } from 'react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
@@ -5,7 +6,6 @@ import { auth, db } from '../services/firebase';
 import { Alert } from 'react-native';
 
 export const AuthContext = createContext();
-
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
@@ -13,56 +13,51 @@ export const AuthProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    let unsubProfile = null;
+
+    const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
-        // --- Fetch profile data (name, role, status) from Firestore ---
         const userDocRef = doc(db, 'users', firebaseUser.uid);
         
-        // Use onSnapshot for real-time updates (e.g., if an admin blocks the user)
-        const unsubProfile = onSnapshot(userDocRef, (docSnap) => {
+        // Sync profile data in real-time
+        unsubProfile = onSnapshot(userDocRef, (docSnap) => {
           if (docSnap.exists()) {
             const userData = docSnap.data();
             
-            // Security Check: Only allow Active users or Admins
+            // Security: Auto-logout blocked or pending users
             if (userData.role !== 'admin' && userData.status !== 'active') {
-              let message = "Your account is pending approval by an admin.";
-              if (userData.status === 'blocked') message = "Your account has been blocked.";
-              
-              Alert.alert("Access Denied", message);
               signOut(auth);
               setUser(null);
+              Alert.alert("Access Denied", "Your account is not active.");
             } else {
-              // Successfully set user with name and other profile fields
-              setUser({
-                uid: firebaseUser.uid,
-                email: firebaseUser.email,
-                ...userData, // This ensures 'name' is available
-              });
+              setUser({ uid: firebaseUser.uid, email: firebaseUser.email, ...userData });
             }
-          } else {
-            console.log("Profile not found yet.");
-            setUser(null); 
           }
           setIsLoading(false);
         }, (error) => {
           console.error("Profile sync error:", error);
           setIsLoading(false);
+          // If we lose permission (during logout), clear the user state
+          if (error.code === 'permission-denied') setUser(null);
         });
-
-        return () => unsubProfile();
       } else {
+        // If Auth state is null, stop the profile listener and clear state
+        if (unsubProfile) unsubProfile();
         setUser(null);
         setIsLoading(false);
       }
     });
 
-    return unsubscribe;
+    return () => {
+      unsubscribeAuth();
+      if (unsubProfile) unsubProfile();
+    };
   }, []);
 
   const logout = async () => {
     try {
       await signOut(auth);
-      setUser(null);
+      setUser(null); // Force local state clearing
     } catch (error) {
       console.error('Error logging out:', error);
     }

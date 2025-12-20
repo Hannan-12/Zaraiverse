@@ -1,7 +1,7 @@
 // src/screens/expert/ExpertChatList.js
 import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, where } from 'firebase/firestore'; 
 import { db } from '../../services/firebase';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -12,15 +12,19 @@ export default function ExpertChatList() {
   const navigation = useNavigation();
 
   useEffect(() => {
-    // 1. Query all active chats, ordered by most recent message
-    const q = query(collection(db, 'chats'), orderBy('updatedAt', 'desc'));
+    // Query chats of type 'support'
+    const q = query(
+      collection(db, 'chats'), 
+      where('type', '==', 'support'), 
+      orderBy('updatedAt', 'desc')
+    );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const chatList = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      const chatList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setChats(chatList);
+      setLoading(false);
+    }, (error) => {
+      console.error("Chat list error:", error);
       setLoading(false);
     });
 
@@ -32,20 +36,15 @@ export default function ExpertChatList() {
       style={styles.chatItem}
       onPress={() => navigation.navigate('ChatScreen', { 
         chatId: item.id,
-        title: item.farmerName,
-        farmerId: item.farmerId
+        title: item.farmerName || 'Farmer',
+        farmerId: item.farmerId,
+        farmerName: item.farmerName
       })}
     >
-      <View style={styles.avatar}>
-        <Text style={styles.avatarText}>
-          {item.farmerName ? item.farmerName.charAt(0).toUpperCase() : 'U'}
-        </Text>
-      </View>
+      <View style={styles.avatar}><Text style={styles.avatarText}>{item.farmerName ? item.farmerName[0] : 'F'}</Text></View>
       <View style={styles.chatInfo}>
         <Text style={styles.name}>{item.farmerName || 'Unknown Farmer'}</Text>
-        <Text style={styles.lastMessage} numberOfLines={1}>
-          {item.lastMessage || 'No messages yet...'}
-        </Text>
+        <Text style={styles.lastMessage} numberOfLines={1}>{item.lastMessage || 'No messages'}</Text>
       </View>
       <Ionicons name="chevron-forward" size={20} color="#ccc" />
     </TouchableOpacity>
@@ -56,15 +55,9 @@ export default function ExpertChatList() {
   return (
     <View style={styles.container}>
       {chats.length === 0 ? (
-        <View style={styles.center}>
-          <Text style={styles.emptyText}>No active chats.</Text>
-        </View>
+        <View style={styles.center}><Text style={styles.emptyText}>No farmer chats found.</Text></View>
       ) : (
-        <FlatList
-          data={chats}
-          renderItem={renderItem}
-          keyExtractor={item => item.id}
-        />
+        <FlatList data={chats} renderItem={renderItem} keyExtractor={item => item.id} />
       )}
     </View>
   );
@@ -74,22 +67,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   emptyText: { color: '#888', fontSize: 16 },
-  chatItem: {
-    flexDirection: 'row',
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-    alignItems: 'center'
-  },
-  avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#FFB74D',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 15
-  },
+  chatItem: { flexDirection: 'row', padding: 15, borderBottomWidth: 1, borderBottomColor: '#f0f0f0', alignItems: 'center' },
+  avatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#8BC34A', justifyContent: 'center', alignItems: 'center', marginRight: 15 },
   avatarText: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
   chatInfo: { flex: 1 },
   name: { fontSize: 16, fontWeight: 'bold', color: '#333' },
