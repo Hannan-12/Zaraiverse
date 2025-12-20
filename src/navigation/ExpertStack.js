@@ -38,7 +38,7 @@ export default function ExpertStack() {
         options={{ title: 'Farmer Chats' }} 
       />
       
-      {/* ✅ ADD THIS SCREEN so navigation works */}
+      {}
       <Stack.Screen 
         name="ChatScreen" 
         component={ChatScreen} 
