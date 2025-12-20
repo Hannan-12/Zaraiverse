@@ -1,12 +1,11 @@
 // src/contexts/AuthContext.js
 import React, { createContext, useEffect, useState, useContext } from 'react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot } from 'firebase/snapshot';
 import { auth, db } from '../services/firebase';
 import { Alert } from 'react-native';
 
 export const AuthContext = createContext();
-export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -18,30 +17,24 @@ export const AuthProvider = ({ children }) => {
     const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
         const userDocRef = doc(db, 'users', firebaseUser.uid);
-        
-        // Sync profile data in real-time
         unsubProfile = onSnapshot(userDocRef, (docSnap) => {
           if (docSnap.exists()) {
             const userData = docSnap.data();
             
-            // Security: Auto-logout blocked or pending users
-            if (userData.role !== 'admin' && userData.status !== 'active') {
+            // Only force logout for BLOCKED users
+            if (userData.status === 'blocked') {
               signOut(auth);
               setUser(null);
-              Alert.alert("Access Denied", "Your account is not active.");
+              Alert.alert("Denied", "Your account is blocked.");
             } else {
               setUser({ uid: firebaseUser.uid, email: firebaseUser.email, ...userData });
             }
+          } else {
+            setUser({ uid: firebaseUser.uid, email: firebaseUser.email, status: 'pending' });
           }
           setIsLoading(false);
-        }, (error) => {
-          console.error("Profile sync error:", error);
-          setIsLoading(false);
-          // If we lose permission (during logout), clear the user state
-          if (error.code === 'permission-denied') setUser(null);
-        });
+        }, () => setIsLoading(false));
       } else {
-        // If Auth state is null, stop the profile listener and clear state
         if (unsubProfile) unsubProfile();
         setUser(null);
         setIsLoading(false);
@@ -55,12 +48,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const logout = async () => {
-    try {
-      await signOut(auth);
-      setUser(null); // Force local state clearing
-    } catch (error) {
-      console.error('Error logging out:', error);
-    }
+    try { await signOut(auth); setUser(null); } catch (e) { console.error(e); }
   };
 
   return (
