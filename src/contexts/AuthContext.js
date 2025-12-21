@@ -1,5 +1,10 @@
+// src/contexts/AuthContext.js
 import React, { createContext, useEffect, useState, useContext } from 'react';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { 
+  onAuthStateChanged, 
+  signOut, 
+  signInWithEmailAndPassword // ✅ Add this import
+} from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { auth, db } from '../services/firebase';
 import { Alert } from 'react-native';
@@ -11,19 +16,27 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // ✅ Add the login function
+  const login = async (email, password) => {
+    try {
+      setIsLoading(true);
+      await signInWithEmailAndPassword(auth, email, password);
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
     let unsubProfile = null;
-
     const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
         const userDocRef = doc(db, 'users', firebaseUser.uid);
-        
         unsubProfile = onSnapshot(userDocRef, (docSnap) => {
           if (docSnap.exists()) {
             const userData = docSnap.data();
-            
-            // ✅ Only auto-logout if the user is BLOCKED. 
-            // Allow 'pending' and 'active' users to stay logged in.
             if (userData.status === 'blocked') {
               signOut(auth);
               setUser(null);
@@ -32,7 +45,6 @@ export const AuthProvider = ({ children }) => {
               setUser({ uid: firebaseUser.uid, email: firebaseUser.email, ...userData });
             }
           } else {
-            // Profile document creation might be in progress
             setUser({ uid: firebaseUser.uid, email: firebaseUser.email, status: 'pending' });
           }
           setIsLoading(false);
@@ -58,7 +70,8 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, setUser, isLoading, logout }}>
+    // ✅ Add 'login' and rename/alias 'isLoading' to 'loading' to match LoginScreen.js
+    <AuthContext.Provider value={{ user, setUser, isLoading, loading: isLoading, logout, login }}>
       {children}
     </AuthContext.Provider>
   );
