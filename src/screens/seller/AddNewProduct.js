@@ -1,136 +1,54 @@
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  Alert,
-  ActivityIndicator,
-  Image, // <-- Import Image component
+  View, Text, TextInput, TouchableOpacity, StyleSheet, 
+  ScrollView, Alert, ActivityIndicator, Image,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker'; // <-- Import Image Picker
-// --- MODIFIED IMPORTS ---
-import { db, auth } from '../../services/firebase'; // Removed 'storage'
+import * as ImagePicker from 'expo-image-picker';
+import { db, auth } from '../../services/firebase';
 import { collection, addDoc } from 'firebase/firestore';
-// Removed: import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 export default function AddNewProduct({ navigation }) {
-  const [product, setProduct] = useState({
-    name: '',
-    price: '',
-    description: '',
-    category: '',
-  });
-  const [imageUri, setImageUri] = useState(null); // <-- State to hold the selected image URI
+  const [product, setProduct] = useState({ name: '', price: '', description: '', category: '' });
+  const [imageUri, setImageUri] = useState(null);
+  const [base64Image, setBase64Image] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleInputChange = (field, value) => {
-    setProduct({ ...product, [field]: value });
-  };
-
-// --- NEW: Dummy placeholder function replacing the upload logic ---
-  const getPlaceholderUrl = () => {
-      // This URL will be saved to Firestore instead of a real image link
-      return 'https://placehold.co/600x400/2E8B57/FFFFFF?text=Product+Image';
-  };
-
-  // --- MODIFIED: Function to pick an image (Fixed constant reference) ---
   const handlePickImage = async () => {
-    // 1. Request permission
-    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
-    if (permissionResult.granted === false) {
-      Alert.alert("Permission Required", "You need to allow access to your photos to upload an image.");
-      console.log("Image picker permission denied.");
-      return;
-    }
-    
-    console.log("Image picker permission granted.");
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.2, // Low quality to stay under Firestore 1MB limit
+      base64: true,
+    });
 
-    // 2. Launch image picker
-    try {
-        const pickerResult = await ImagePicker.launchImageLibraryAsync({
-            // ✅ FIX: Changed to ImagePicker.MediaTypeOptions.Images
-            mediaTypes: ImagePicker.MediaTypeOptions.Images, 
-            allowsEditing: true,
-            aspect: [1, 1], // Square aspect ratio
-            quality: 0.7, // Compress image
-        });
-
-        // 3. Robustly check for success and extract URI
-        if (pickerResult.canceled) {
-            console.log("Image picker was cancelled.");
-            return;
-        }
-
-        if (pickerResult.assets && pickerResult.assets.length > 0) {
-            const uri = pickerResult.assets[0].uri;
-            console.log("Image URI successfully selected:", uri);
-            setImageUri(uri);
-        } else {
-            console.error("Image picker finished, but no assets were returned. Check pickerResult object in console.");
-            Alert.alert("Error", "Could not select image. Try again.");
-        }
-    } catch (error) {
-        // This is where the original TypeError was caught.
-        console.error("Error during image picking:", error);
-        Alert.alert("Error", "An unexpected error occurred during image selection. Check console for details.");
+    if (!result.canceled) {
+      setImageUri(result.assets[0].uri);
+      setBase64Image(`data:image/jpeg;base64,${result.assets[0].base64}`);
     }
   };
-
-  // --- REMOVED: Function to upload the image to Firebase Storage is deleted ---
-
 
   const handleSubmit = async () => {
-    if (!product.name || !product.price || !product.description) {
-      Alert.alert('Missing Fields', 'Please fill all required fields.');
-      return;
-    }
-
-    // --- Check if an image is selected is relaxed, but we'll use placeholder if true ---
-    if (!imageUri) {
-      Alert.alert('Missing Image', 'Please pick an image for the product.');
-      return;
-    }
-
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
-      Alert.alert('Not Authenticated', 'You must be logged in to add a product.');
+    if (!product.name || !product.price || !base64Image) {
+      Alert.alert('Missing Info', 'Please fill all fields and pick an image.');
       return;
     }
 
     setIsLoading(true);
-
     try {
-      // 1. Get the placeholder URL instead of trying to upload the image
-      const downloadURL = getPlaceholderUrl(); // <-- CHANGED: Uses placeholder
-
-      // 2. Prepare product data with the new image URL
-      const newProductData = {
-        name: product.name,
-        category: product.category,
+      await addDoc(collection(db, 'products'), {
+        ...product,
         price: parseFloat(product.price) || 0,
-        description: product.description,
+        image: base64Image, // Saves the actual image data
+        sellerId: auth.currentUser.uid,
         stockStatus: 'In Stock',
-        image: downloadURL, // <-- Now a placeholder URL
-        sellerId: currentUser.uid,
-      };
-
-      // 3. Add the product document to Firestore
-      await addDoc(collection(db, 'products'), newProductData);
-
-      Alert.alert(
-        '✅ Product Added',
-        `${product.name} has been saved to the database!`
-      );
-
+        createdAt: new Date(),
+      });
+      Alert.alert('Success', 'Product listed successfully!');
       navigation.goBack();
     } catch (error) {
-      console.error('Error adding product: ', error);
-      Alert.alert('Error', 'Could not add product. Please try again.');
+      Alert.alert('Error', 'Permission denied or connection issue.');
     } finally {
       setIsLoading(false);
     }
@@ -139,76 +57,23 @@ export default function AddNewProduct({ navigation }) {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.header}>🛍️ Add New Product</Text>
-      <Text style={styles.subtitle}>Fill in the details below to add a product</Text>
-
-      <View style={styles.form}>
-        <View style={styles.inputContainer}>
-          <MaterialIcons name="shopping-bag" size={24} color="#2E8B57" />
-          <TextInput
-            style={styles.input}
-            placeholder="Product Name"
-            placeholderTextColor="#999"
-            value={product.name}
-            onChangeText={(text) => handleInputChange('name', text)}
-          />
-        </View>
-
-        <View style={styles.inputContainer}>
-          <MaterialIcons name="attach-money" size={24} color="#2E8B57" />
-          <TextInput
-            style={styles.input}
-            placeholder="Price"
-            placeholderTextColor="#999"
-            keyboardType="numeric"
-            value={product.price}
-            onChangeText={(text) => handleInputChange('price', text)}
-          />
-        </View>
-
-        <View style={styles.inputContainer}>
-          <MaterialIcons name="category" size={24} color="#2E8B57" />
-          <TextInput
-            style={styles.input}
-            placeholder="Category"
-            placeholderTextColor="#999"
-            value={product.category}
-            onChangeText={(text) => handleInputChange('category', text)}
-          />
-        </View>
-
-        <View style={styles.inputContainer}>
-          <MaterialIcons name="description" size={24} color="#2E8B57" />
-          <TextInput
-            style={[styles.input, { height: 100, textAlignVertical: 'top' }]}
-            placeholder="Description"
-            placeholderTextColor="#999"
-            multiline
-            value={product.description}
-            onChangeText={(text) => handleInputChange('description', text)}
-          />
-        </View>
-
-        {/* --- MODIFIED: Image URL input replaced with Image Picker --- */}
-        <TouchableOpacity style={styles.imagePickerButton} onPress={handlePickImage}>
-          <MaterialIcons name="image" size={24} color="#fff" />
-          <Text style={styles.imagePickerButtonText}>Pick Product Image</Text>
+      <View style={styles.formCard}>
+        <TouchableOpacity style={styles.imagePicker} onPress={handlePickImage}>
+          {imageUri ? <Image source={{ uri: imageUri }} style={styles.preview} /> : (
+            <View style={styles.placeholder}>
+              <MaterialIcons name="add-a-photo" size={40} color="#2E8B57" />
+              <Text style={styles.placeholderText}>Tap to add image</Text>
+            </View>
+          )}
         </TouchableOpacity>
 
-        {/* --- NEW: Show image preview if selected --- */}
-        {imageUri && (
-          <Image source={{ uri: imageUri }} style={styles.imagePreview} />
-        )}
+        <TextInput style={styles.input} placeholder="Product Name" onChangeText={(t) => setProduct({...product, name: t})} />
+        <TextInput style={styles.input} placeholder="Price (Rs.)" keyboardType="numeric" onChangeText={(t) => setProduct({...product, price: t})} />
+        <TextInput style={styles.input} placeholder="Category" onChangeText={(t) => setProduct({...product, category: t})} />
+        <TextInput style={[styles.input, styles.textArea]} placeholder="Description" multiline onChangeText={(t) => setProduct({...product, description: t})} />
 
-        <TouchableOpacity
-          style={styles.button}
-          onPress={handleSubmit}
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Add Product</Text>
-          )}
+        <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit} disabled={isLoading}>
+          {isLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>List Product</Text>}
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -216,82 +81,15 @@ export default function AddNewProduct({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 20,
-    backgroundColor: '#F8FAF9',
-    flexGrow: 1,
-  },
-  header: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: '#2E8B57',
-    marginBottom: 6,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 15,
-    color: '#555',
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  form: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderBottomColor: '#E0EE0',
-    borderBottomWidth: 1,
-    marginBottom: 15,
-  },
-  input: {
-    flex: 1,
-    marginLeft: 10,
-    fontSize: 16,
-    color: '#333',
-    paddingVertical: 12,
-  },
-  // --- NEW: Styles for image picker ---
-  imagePickerButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#4CAF50',
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginBottom: 15,
-  },
-  imagePickerButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 10,
-  },
-  imagePreview: {
-    width: '100%',
-    height: 200,
-    borderRadius: 8,
-    marginBottom: 15,
-    backgroundColor: '#f0f0f0',
-  },
-  // ---
-  button: {
-    backgroundColor: '#2E8B57',
-    paddingVertical: 14,
-    borderRadius: 12,
-    marginTop: 10,
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '700',
-  },
+  container: { padding: 20, backgroundColor: '#F8FAF9', flexGrow: 1 },
+  header: { fontSize: 26, fontWeight: '800', color: '#2E8B57', textAlign: 'center', marginBottom: 20 },
+  formCard: { backgroundColor: '#fff', borderRadius: 20, padding: 20, elevation: 4 },
+  imagePicker: { height: 180, backgroundColor: '#f0f0f0', borderRadius: 15, marginBottom: 20, overflow: 'hidden' },
+  preview: { width: '100%', height: '100%' },
+  placeholder: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  placeholderText: { color: '#2E8B57', marginTop: 5, fontWeight: '600' },
+  input: { borderBottomWidth: 1, borderBottomColor: '#eee', padding: 12, fontSize: 16, marginBottom: 15 },
+  textArea: { height: 80, textAlignVertical: 'top' },
+  submitBtn: { backgroundColor: '#2E8B57', padding: 16, borderRadius: 15, marginTop: 10, alignItems: 'center' },
+  btnText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
 });

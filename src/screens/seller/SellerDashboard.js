@@ -1,116 +1,108 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
+  StatusBar,
 } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons, Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { AuthContext } from '../../contexts/AuthContext';
 
 export default function SellerDashboard({ navigation }) {
-  // Added a 'color' property to each item for styling the cards
+  const { user } = useContext(AuthContext);
+
   const menuItems = [
     {
-      title: 'Add New Product',
+      title: 'Add Product',
       icon: 'add-box',
       screen: 'PostProduct',
-      color: '#4CAF50',
+      colors: ['#66BB6A', '#43A047'],
     },
     {
-      title: 'Manage Products',
+      title: 'Products',
       icon: 'inventory',
       screen: 'ManageProducts',
-      color: '#388E3C',
+      colors: ['#388E3C', '#2E7D32'],
     },
     {
-      title: 'Manage Orders',
+      title: 'Orders',
       icon: 'receipt-long',
       screen: 'SellerOrders',
-      color: '#2E7D32',
+      colors: ['#FFA726', '#FB8C00'],
     },
     {
-      title: 'Manage Shipment',
+      title: 'Shipments',
       icon: 'local-shipping',
       screen: 'ManageShipment',
-      color: '#1B5E20',
+      colors: ['#42A5F5', '#1E88E5'],
     },
     {
       title: 'Profile',
       icon: 'person',
       screen: 'Profile',
-      color: '#66BB6A',
+      colors: ['#AB47BC', '#8E24AA'],
     },
   ];
 
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.header}>📦 Seller Dashboard</Text>
-      <Text style={styles.subtitle}>Manage your store efficiently</Text>
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" />
+      <LinearGradient colors={['#2E8B57', '#1B5E20']} style={styles.headerGradient}>
+        <View style={styles.headerContent}>
+          <View>
+            <Text style={styles.greetingText}>Salam, {user?.displayName || 'Seller'}! 📦</Text>
+            <Text style={styles.subText}>Manage your store efficiently</Text>
+          </View>
+          <View style={styles.iconCircleHeader}>
+            <MaterialIcons name="store" size={28} color="#2E8B57" />
+          </View>
+        </View>
+      </LinearGradient>
 
-      {/* Grid container for the cards */}
-      <View style={styles.grid}>
-        {menuItems.map((item, index) => (
-          <TouchableOpacity
-            key={index}
-            style={[styles.card, { backgroundColor: item.color }]}
-            onPress={() => navigation.navigate(item.screen)}
-          >
-            <MaterialIcons name={item.icon} size={40} color="#fff" />
-            <Text style={styles.cardText}>{item.title}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-    </ScrollView>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <Text style={styles.sectionTitle}>Business Hub</Text>
+        <View style={styles.grid}>
+          {menuItems.map((item, index) => (
+            <TouchableOpacity
+              key={index}
+              style={styles.cardContainer}
+              onPress={() => navigation.navigate(item.screen)}
+              activeOpacity={0.8}
+            >
+              <LinearGradient 
+                colors={item.colors} 
+                style={styles.cardGradient} 
+                start={{ x: 0, y: 0 }} 
+                end={{ x: 1, y: 1 }}
+              >
+                <View style={styles.iconCircle}>
+                  <MaterialIcons name={item.icon} size={28} color={item.colors[1]} />
+                </View>
+                <Text style={styles.cardText}>{item.title}</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8FFF9',
-    paddingHorizontal: 16,
-    paddingTop: 40,
-  },
-  header: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#2E8B57',
-    textAlign: 'center', // Centered header
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#555',
-    textAlign: 'center', // Centered subtitle
-    marginBottom: 20,
-    marginTop: 5,
-  },
-  // New grid style
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  // Updated card style
-  card: {
-    width: '48%', // Creates two columns
-    height: 150, // Makes the cards more square
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    shadowOffset: { width: 0, height: 2 },
-  },
-  // Updated card text style
-  cardText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: '#fff', // White text
-    fontWeight: '600',
-    textAlign: 'center',
-  },
+  container: { flex: 1, backgroundColor: '#F5F7FA' },
+  headerGradient: { paddingTop: 60, paddingBottom: 30, paddingHorizontal: 20, borderBottomLeftRadius: 30, borderBottomRightRadius: 30, elevation: 10 },
+  headerContent: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  greetingText: { fontSize: 24, fontWeight: '800', color: '#fff', marginBottom: 5 },
+  subText: { fontSize: 14, color: '#E8F5E9', opacity: 0.9 },
+  iconCircleHeader: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', elevation: 3 },
+  scrollContent: { padding: 20 },
+  sectionTitle: { fontSize: 20, fontWeight: '700', color: '#333', marginBottom: 15 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+  cardContainer: { width: '48%', height: 130, marginBottom: 16, borderRadius: 20, elevation: 5 },
+  cardGradient: { flex: 1, borderRadius: 20, padding: 15, justifyContent: 'space-between', alignItems: 'flex-start' },
+  iconCircle: { width: 45, height: 45, borderRadius: 23, backgroundColor: 'rgba(255, 255, 255, 0.9)', justifyContent: 'center', alignItems: 'center' },
+  cardText: { fontSize: 16, fontWeight: '700', color: '#fff', marginTop: 10 },
 });

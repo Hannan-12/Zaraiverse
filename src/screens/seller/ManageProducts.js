@@ -1,24 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  Alert,
-  ActivityIndicator,
+import { 
+  View, Text, StyleSheet, FlatList, TouchableOpacity, 
+  Alert, ActivityIndicator, Image 
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-// --- ✅ MODIFIED: Firebase Imports ---
 import { db } from '../../services/firebase';
-import {
-  collection,
-  query,
-  onSnapshot,
-  doc,
-  deleteDoc,
-  updateDoc,
-} from 'firebase/firestore';
+import { collection, query, onSnapshot, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 
 export default function ManageProducts() {
   const [products, setProducts] = useState([]);
@@ -26,212 +13,60 @@ export default function ManageProducts() {
 
   useEffect(() => {
     const q = query(collection(db, 'products'));
-
-    const unsubscribe = onSnapshot(
-      q,
-      (querySnapshot) => {
-        const productsData = [];
-        querySnapshot.forEach((doc) => {
-          productsData.push({ ...doc.data(), id: doc.id });
-        });
-        setProducts(productsData);
-        setLoading(false);
-      },
-      (error) => {
-        console.error('Error fetching products: ', error);
-        setLoading(false);
-        Alert.alert('Error', 'Could not fetch products.');
-      }
-    );
-
-    // Unsubscribe from the listener when the component unmounts
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setProducts(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+      setLoading(false);
+    }, (error) => {
+      console.error(error);
+      setLoading(false);
+    });
     return () => unsubscribe();
   }, []);
 
-  const handleDelete = async (productId) => {
-    Alert.alert(
-      'Delete Product',
-      'Are you sure you want to permanently delete this product?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          onPress: async () => {
-            try {
-              await deleteDoc(doc(db, 'products', productId));
-            } catch (error) {
-              console.error('Error deleting product: ', error);
-              Alert.alert('Error', 'Could not delete product.');
-            }
-          },
-          style: 'destructive',
-        },
-      ]
-    );
+  const toggleStock = async (id, current) => {
+    const next = current === 'In Stock' ? 'Out of Stock' : 'In Stock';
+    await updateDoc(doc(db, 'products', id), { stockStatus: next });
   };
 
-  const handleToggleStock = async (productId, currentStatus) => {
-    const newStatus = currentStatus === 'In Stock' ? 'Out of Stock' : 'In Stock';
-    try {
-      const productRef = doc(db, 'products', productId);
-      await updateDoc(productRef, {
-        stockStatus: newStatus,
-      });
-    } catch (error) {
-      console.error('Error updating stock status: ', error);
-      Alert.alert('Error', 'Could not update stock status.');
-    }
-  };
-
-  const renderProduct = ({ item }) => {
-    const isInStock = item.stockStatus === 'In Stock';
-    return (
-      <View style={styles.card}>
-        <View style={styles.header}>
-          <Text style={styles.productName}>{item.name}</Text>
-          <TouchableOpacity onPress={() => handleDelete(item.id)}>
-            <MaterialCommunityIcons
-              name="delete-outline"
-              size={22}
-              color="#C62828"
-            />
+  const renderProduct = ({ item }) => (
+    <View style={styles.card}>
+      <Image source={{ uri: item.image }} style={styles.img} />
+      <View style={styles.info}>
+        <View style={styles.row}>
+          <Text style={styles.name}>{item.name}</Text>
+          <TouchableOpacity onPress={() => deleteDoc(doc(db, 'products', item.id))}>
+            <MaterialCommunityIcons name="delete-outline" size={22} color="#C62828" />
           </TouchableOpacity>
         </View>
-
-        <Text style={styles.category}>{item.category}</Text>
-        <Text style={styles.price}>💰 Rs. {item.price}</Text>
-
-        <View style={styles.footer}>
-          <View style={styles.statusContainer}>
-            <MaterialCommunityIcons
-              name={isInStock ? 'check-circle-outline' : 'alert-circle-outline'}
-              size={18}
-              color={isInStock ? '#388E3C' : '#E53935'}
-            />
-            <Text
-              style={[
-                styles.stockStatus,
-                { color: isInStock ? '#388E3C' : '#E53935' },
-              ]}
-            >
-              {item.stockStatus}
-            </Text>
-          </View>
-
-          <TouchableOpacity
-            style={[
-              styles.toggleButton,
-              { backgroundColor: isInStock ? '#E53935' : '#388E3C' },
-            ]}
-            onPress={() => handleToggleStock(item.id, item.stockStatus)}
-          >
-            <Text style={styles.toggleButtonText}>
-              {isInStock ? 'Mark Out of Stock' : 'Mark In Stock'}
-            </Text>
-          </TouchableOpacity>
-        </View>
+        <Text style={styles.price}>Rs. {item.price}</Text>
+        <TouchableOpacity 
+          style={[styles.statusBtn, { backgroundColor: item.stockStatus === 'In Stock' ? '#E8F5E9' : '#FFEBEE' }]}
+          onPress={() => toggleStock(item.id, item.stockStatus)}
+        >
+          <Text style={{ color: item.stockStatus === 'In Stock' ? '#2E7D32' : '#C62828', fontWeight: 'bold' }}>
+            {item.stockStatus} (Tap to change)
+          </Text>
+        </TouchableOpacity>
       </View>
-    );
-  };
+    </View>
+  );
 
-  if (loading) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#2E8B57" />
-      </View>
-    );
-  }
+  if (loading) return <ActivityIndicator size="large" color="#2E8B57" style={{marginTop: 50}} />;
 
   return (
     <View style={styles.container}>
-      <FlatList
-        data={products}
-        keyExtractor={(item) => item.id}
-        renderItem={renderProduct}
-        contentContainerStyle={styles.list}
-        ListEmptyComponent={
-          <Text style={styles.emptyText}>No products found.</Text>
-        }
-      />
+      <FlatList data={products} renderItem={renderProduct} keyExtractor={item => item.id} contentContainerStyle={{padding: 16}} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8FAF9',
-  },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F8FAF9',
-  },
-  list: {
-    padding: 16,
-  },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  productName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#333',
-  },
-  category: {
-    color: '#777',
-    fontSize: 14,
-    marginVertical: 6,
-  },
-  price: {
-    fontSize: 15,
-    color: '#2E7D32',
-    fontWeight: '600',
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 12,
-  },
-  statusContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  stockStatus: {
-    marginLeft: 6,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  toggleButton: {
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-  },
-  toggleButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-  emptyText: {
-    textAlign: 'center',
-    color: '#777',
-    marginTop: 40,
-    fontSize: 16,
-  },
+  container: { flex: 1, backgroundColor: '#F8FAF9' },
+  card: { backgroundColor: '#fff', borderRadius: 15, padding: 12, marginBottom: 15, flexDirection: 'row', elevation: 3 },
+  img: { width: 80, height: 80, borderRadius: 10, backgroundColor: '#f0f0f0' },
+  info: { flex: 1, marginLeft: 12, justifyContent: 'space-between' },
+  row: { flexDirection: 'row', justifyContent: 'space-between' },
+  name: { fontSize: 16, fontWeight: 'bold' },
+  price: { color: '#2E7D32', fontWeight: 'bold', marginVertical: 4 },
+  statusBtn: { padding: 6, borderRadius: 8, alignSelf: 'flex-start' }
 });
-

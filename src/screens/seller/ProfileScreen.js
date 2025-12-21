@@ -1,5 +1,4 @@
-// src/screens/seller/ProfileScreen.js
-import React, { useContext, useState, useEffect } from 'react';
+import React, { useContext, useState } from 'react';
 import { 
   View, 
   Text, 
@@ -7,215 +6,189 @@ import {
   TouchableOpacity, 
   Image, 
   ScrollView, 
-  Alert,
-  ActivityIndicator
+  Alert, 
+  ActivityIndicator, 
+  TextInput 
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
-import { auth, db } from '../../services/firebase';
-import { signOut } from 'firebase/auth';
-import { doc, updateDoc, onSnapshot } from 'firebase/firestore';
+import { db } from '../../services/firebase';
+import { doc, updateDoc } from 'firebase/firestore';
 import { AuthContext } from '../../contexts/AuthContext';
 
-export default function ProfileScreen() {
-  const { user } = useContext(AuthContext);
-  const [imageUri, setImageUri] = useState(null);
+export default function ProfileScreen({ navigation }) {
+  const { user, logout } = useContext(AuthContext);
   const [loading, setLoading] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [newName, setNewName] = useState(user?.name || '');
 
-  // 1. Listen to real-time changes in Firestore to update the image automatically
-  useEffect(() => {
-    if (!user?.uid) return;
-
-    const userRef = doc(db, 'users', user.uid);
-    const unsubscribe = onSnapshot(userRef, (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        // If photoURL exists (base64 string), set it
-        if (data.photoURL) {
-          setImageUri(data.photoURL);
-        }
-      }
-    });
-
-    return () => unsubscribe();
-  }, [user]);
-
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-    } catch (error) {
-      console.error("Error signing out: ", error);
-      Alert.alert("Error", "Could not log out.");
-    }
-  };
-
-  // 2. Pick Image and Convert to Base64 (Text)
-  const handlePickAndUploadImage = async () => {
-    // Request Permission
-    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (permissionResult.granted === false) {
-      Alert.alert("Permission Required", "Allow camera roll access to change profile picture.");
-      return;
-    }
-
-    // Launch Picker
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images, // Corrected Enum
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.2, // ⚠️ LOW QUALITY REQUIRED: Firestore has a 1MB limit per document
-      base64: true, // <--- This gives us the text string
-    });
-
-    if (!result.canceled && result.assets && result.assets.length > 0) {
-      saveImageToFirestore(result.assets[0].base64);
-    }
-  };
-
-  // 3. Save "Text" Image to Firestore
-  const saveImageToFirestore = async (base64String) => {
-    // Construct the data URL
-    const imageBase64 = `data:image/jpeg;base64,${base64String}`;
-
-    // Safety Check: 1MB limit (approx 1,048,576 bytes)
-    if (imageBase64.length > 1000000) {
-      Alert.alert("Image too large", "Please select a smaller or simpler image.");
-      return;
-    }
-
+  // Update the Seller's name in Firestore
+  const handleUpdateName = async () => {
+    if (!newName.trim()) return Alert.alert("Error", "Name cannot be empty.");
     setLoading(true);
     try {
-      const userRef = doc(db, 'users', user.uid);
-      
-      // Update the 'photoURL' field with the long text string
-      await updateDoc(userRef, {
-        photoURL: imageBase64
-      });
-
-      Alert.alert("Success", "Profile picture updated!");
-    } catch (error) {
-      console.error("Firestore Update Error:", error);
-      Alert.alert("Error", "Could not save image. It might be too large for the database.");
+      await updateDoc(doc(db, 'users', user.uid), { name: newName });
+      setIsEditing(false);
+      Alert.alert("Success", "Name updated!");
+    } catch (e) {
+      Alert.alert("Error", "Failed to update profile.");
     } finally {
       setLoading(false);
     }
   };
 
-  if (!user) return null;
+  // Pick and upload profile image as Base64 string
+  const handlePickImage = async () => {
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (permissionResult.granted === false) {
+      Alert.alert("Permission Required", "Allow access to your photos to change profile picture.");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.2, // Low quality to stay under Firestore 1MB limit
+      base64: true,
+    });
+
+    if (!result.canceled) {
+      setLoading(true);
+      try {
+        const imageBase64 = `data:image/jpeg;base64,${result.assets[0].base64}`;
+        await updateDoc(doc(db, 'users', user.uid), { photoURL: imageBase64 });
+      } catch (e) {
+        Alert.alert("Error", "Photo update failed.");
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
 
   return (
-    <ScrollView style={styles.outerContainer} contentContainerStyle={styles.container}>
-      
-      <View style={styles.headerSection}>
-        <TouchableOpacity style={styles.avatarContainer} onPress={handlePickAndUploadImage} disabled={loading}>
-          {loading ? (
-            <View style={[styles.avatar, styles.loadingAvatar]}>
-              <ActivityIndicator size="small" color="#2E8B57" />
-            </View>
-          ) : imageUri ? (
-            <Image source={{ uri: imageUri }} style={styles.avatar} />
-          ) : (
-            <View style={styles.placeholder}>
-              <Ionicons name="person" size={50} color="#ccc" />
+    <ScrollView style={styles.container}>
+      <LinearGradient colors={['#2E8B57', '#1B5E20']} style={styles.header}>
+        <Text style={styles.headerTitle}>Seller Profile</Text>
+      </LinearGradient>
+
+      <View style={styles.profileCard}>
+        {/* Profile Image Section */}
+        <TouchableOpacity onPress={handlePickImage} disabled={loading}>
+          <Image 
+            source={user?.photoURL ? { uri: user.photoURL } : require('../../assets/ZaraiVerse.png')} 
+            style={styles.avatar} 
+          />
+          <View style={styles.cameraIcon}>
+            <Ionicons name="camera" size={14} color="#fff" />
+          </View>
+          {loading && (
+            <View style={styles.loadingOverlay}>
+              <ActivityIndicator color="#fff" />
             </View>
           )}
-
-          <View style={styles.editIcon}>
-            <Ionicons name="camera" size={16} color="#fff" />
-          </View>
         </TouchableOpacity>
-
-        <Text style={styles.userName}>{user.displayName || 'Admin User'}</Text>
-        <Text style={styles.userEmail}>{user.email}</Text>
         
+        {/* Name Editing Section */}
+        {isEditing ? (
+          <View style={styles.editSection}>
+            <TextInput 
+              style={styles.input} 
+              value={newName} 
+              onChangeText={setNewName} 
+              placeholder="Edit Name" 
+            />
+            <TouchableOpacity onPress={handleUpdateName} style={styles.saveBtn}>
+              <Text style={styles.saveBtnText}>Save</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <>
+            <Text style={styles.userName}>{user?.name || 'Seller User'}</Text>
+            <TouchableOpacity onPress={() => setIsEditing(true)}>
+              <Text style={styles.editLink}>Edit Profile</Text>
+            </TouchableOpacity>
+          </>
+        )}
+        <Text style={styles.userEmail}>{user?.email}</Text>
         <View style={styles.roleBadge}>
-          <Text style={styles.roleText}>{user.role ? user.role.toUpperCase() : 'USER'}</Text>
+          <Text style={styles.roleText}>{user?.role?.toUpperCase() || 'SELLER'}</Text>
+        </View>
+
+        {/* --- NAVIGATION MENU --- */}
+        <View style={styles.menuWrapper}>
+          <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('HelpCenter')}>
+            <Ionicons name="help-circle-outline" size={24} color="#333" />
+            <Text style={styles.menuText}>Help Center</Text>
+            <Ionicons name="chevron-forward" size={18} color="#ccc" />
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('PrivacyPolicy')}>
+            <Ionicons name="shield-checkmark-outline" size={24} color="#333" />
+            <Text style={styles.menuText}>Privacy Policy</Text>
+            <Ionicons name="chevron-forward" size={18} color="#ccc" />
+          </TouchableOpacity>
         </View>
       </View>
 
-      <View style={styles.menuSection}>
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={20} color="#fff" />
-          <Text style={styles.logoutButtonText}>Logout</Text>
-        </TouchableOpacity>
-      </View>
-
+      <TouchableOpacity style={styles.logoutButton} onPress={logout}>
+        <Ionicons name="log-out-outline" size={20} color="#EF5350" />
+        <Text style={styles.logoutText}>Log Out</Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  outerContainer: { flex: 1, backgroundColor: '#F4F6F8' },
-  container: { flexGrow: 1, alignItems: 'center', paddingBottom: 30 },
-  
-  headerSection: {
-    width: '100%',
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    paddingVertical: 40,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
-    elevation: 4,
+  container: { flex: 1, backgroundColor: '#F5F7FA' },
+  header: { height: 180, paddingTop: 60, alignItems: 'center' },
+  headerTitle: { fontSize: 22, fontWeight: 'bold', color: '#fff' },
+  profileCard: { 
+    backgroundColor: '#fff', 
+    marginHorizontal: 20, 
+    marginTop: -60, 
+    borderRadius: 20, 
+    padding: 25, 
+    alignItems: 'center', 
+    elevation: 5,
     shadowColor: '#000',
     shadowOpacity: 0.1,
     shadowRadius: 10,
-    marginBottom: 20,
+    shadowOffset: { width: 0, height: 5 }
   },
-  avatarContainer: { position: 'relative', marginBottom: 15 },
-  avatar: {
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    borderWidth: 3,
-    borderColor: '#2E8B57',
+  avatar: { width: 110, height: 110, borderRadius: 55, borderWidth: 4, borderColor: '#fff' },
+  loadingOverlay: { 
+    position: 'absolute', 
+    top: 0, 
+    left: 0, 
+    right: 0, 
+    bottom: 0, 
+    backgroundColor: 'rgba(0,0,0,0.3)', 
+    borderRadius: 55, 
+    justifyContent: 'center', 
+    alignItems: 'center' 
   },
-  loadingAvatar: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#eee'
+  cameraIcon: { position: 'absolute', bottom: 5, right: 5, backgroundColor: '#2E8B57', padding: 7, borderRadius: 20, borderWidth: 2, borderColor: '#fff' },
+  userName: { fontSize: 24, fontWeight: 'bold', marginTop: 10, color: '#333' },
+  userEmail: { color: '#666', marginBottom: 10, fontSize: 14 },
+  roleBadge: { backgroundColor: '#E8F5E9', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12, marginBottom: 10 },
+  roleText: { color: '#2E8B57', fontSize: 12, fontWeight: 'bold' },
+  editLink: { color: '#2E8B57', fontWeight: 'bold', marginVertical: 8 },
+  editSection: { flexDirection: 'row', alignItems: 'center', marginTop: 10 },
+  input: { borderBottomWidth: 1, borderColor: '#ccc', width: 160, marginRight: 10, padding: 8, fontSize: 16 },
+  saveBtn: { backgroundColor: '#2E8B57', paddingVertical: 8, paddingHorizontal: 15, borderRadius: 8 },
+  saveBtnText: { color: '#fff', fontWeight: 'bold' },
+  menuWrapper: { width: '100%', marginTop: 20 },
+  menuItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 18, borderTopWidth: 1, borderTopColor: '#f0f0f0' },
+  menuText: { flex: 1, marginLeft: 15, fontSize: 16, color: '#333' },
+  logoutButton: { 
+    flexDirection: 'row', 
+    backgroundColor: '#FFEBEE', 
+    margin: 20, 
+    padding: 16, 
+    borderRadius: 15, 
+    justifyContent: 'center', 
+    alignItems: 'center' 
   },
-  placeholder: {
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    backgroundColor: '#E0E0E0',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: '#ccc',
-  },
-  editIcon: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    backgroundColor: '#2E8B57',
-    padding: 8,
-    borderRadius: 20,
-    borderWidth: 2,
-    borderColor: '#fff',
-  },
-  userName: { fontSize: 22, fontWeight: 'bold', color: '#333' },
-  userEmail: { fontSize: 14, color: '#666', marginBottom: 10 },
-  roleBadge: {
-    backgroundColor: '#E8F5E9',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#C8E6C9',
-  },
-  roleText: { color: '#2E8B57', fontSize: 12, fontWeight: '700' },
-
-  menuSection: { width: '90%' },
-  logoutButton: {
-    flexDirection: 'row',
-    backgroundColor: '#D32F2F',
-    paddingVertical: 15,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 10,
-    elevation: 2,
-  },
-  logoutButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold', marginLeft: 8 },
+  logoutText: { color: '#EF5350', fontWeight: 'bold', marginLeft: 10, fontSize: 16 }
 });

@@ -1,198 +1,72 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  Alert,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { db } from '../../services/firebase';
+import { collection, query, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 
-// Sample data - in a real app, this would come from your database
-const initialOrders = [
-  {
-    id: 'ORD-001',
-    customerName: 'John Doe',
-    date: '2025-10-18',
-    total: '25.49',
-    status: 'Shipped',
-  },
-  {
-    id: 'ORD-002',
-    customerName: 'Jane Smith',
-    date: '2025-10-17',
-    total: '12.99',
-    status: 'Pending',
-  },
-  {
-    id: 'ORD-003',
-    customerName: 'Sam Wilson',
-    date: '2025-10-16',
-    total: '45.00',
-    status: 'Delivered',
-  },
-  {
-    id: 'ORD-004',
-    customerName: 'Emily Brown',
-    date: '2025-10-15',
-    total: '8.75',
-    status: 'Cancelled',
-  },
-];
+export default function SellerOrders() {
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-// Helper to get color based on status
-const getStatusColor = (status) => {
-  switch (status) {
-    case 'Pending':
-      return '#FFA726'; // Orange
-    case 'Shipped':
-      return '#42A5F5'; // Blue
-    case 'Delivered':
-      return '#66BB6A'; // Green
-    case 'Cancelled':
-      return '#EF5350'; // Red
-    default:
-      return '#BDBDBD'; // Grey
-  }
-};
+  useEffect(() => {
+    const q = query(collection(db, 'orders'));
+    return onSnapshot(q, (snapshot) => {
+      setOrders(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+      setLoading(false);
+    });
+  }, []);
 
-export default function SellerOrders({ navigation }) {
-  const [orders, setOrders] = useState(initialOrders);
-
-  const handleViewDetails = (order) => {
-    // For now, just show an alert. In a real app, you'd navigate
-    // to an Order Details screen.
-    Alert.alert(
-      `Order #${order.id}`,
-      `Customer: ${order.customerName}\nTotal: $${order.total}\nStatus: ${order.status}`
-    );
+  const updateStatus = async (orderId, newStatus) => {
+    try {
+      await updateDoc(doc(db, 'orders', orderId), { status: newStatus });
+      Alert.alert("Success", `Order is now ${newStatus}`);
+    } catch (e) {
+      Alert.alert("Error", "Failed to update order status.");
+    }
   };
 
   const renderOrder = ({ item }) => (
-    <TouchableOpacity
-      style={styles.orderCard}
-      onPress={() => handleViewDetails(item)}
-    >
+    <View style={styles.orderCard}>
       <View style={styles.cardHeader}>
-        <Text style={styles.orderId}>Order #{item.id}</Text>
-        <View
-          style={[
-            styles.statusBadge,
-            { backgroundColor: getStatusColor(item.status) },
-          ]}
-        >
+        <Text style={styles.orderId}>Order #{item.id.slice(-6).toUpperCase()}</Text>
+        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
           <Text style={styles.statusText}>{item.status}</Text>
         </View>
       </View>
-      <View style={styles.cardBody}>
-        <View style={styles.detailRow}>
-          <Ionicons name="person-circle-outline" size={20} color="#555" />
-          <Text style={styles.customerName}>{item.customerName}</Text>
-        </View>
-        <View style={styles.detailRow}>
-          <Ionicons name="calendar-outline" size={20} color="#555" />
-          <Text style={styles.orderDate}>{item.date}</Text>
-        </View>
-      </View>
-      <View style={styles.cardFooter}>
-        <Text style={styles.orderTotal}>Total: ${item.total}</Text>
-        <Ionicons name="chevron-forward" size={24} color="#2E8B57" />
-      </View>
-    </TouchableOpacity>
+      
+      <View style={styles.detailRow}><Ionicons name="person-outline" size={18}/><Text style={styles.text}>{item.customerName}</Text></View>
+      <View style={styles.detailRow}><Ionicons name="cash-outline" size={18}/><Text style={styles.price}>Rs. {item.total}</Text></View>
+
+      {item.status === 'Pending' && (
+        <TouchableOpacity style={styles.actionBtn} onPress={() => updateStatus(item.id, 'Processing')}>
+          <MaterialCommunityIcons name="cog" size={20} color="#fff" />
+          <Text style={styles.btnText}>Accept & Process</Text>
+        </TouchableOpacity>
+      )}
+    </View>
   );
+
+  const getStatusColor = (s) => s === 'Pending' ? '#FFA726' : s === 'Processing' ? '#42A5F5' : '#66BB6A';
+
+  if (loading) return <ActivityIndicator size="large" color="#2E8B57" style={{marginTop: 50}}/>;
 
   return (
     <View style={styles.container}>
-      <FlatList
-        data={orders}
-        renderItem={renderOrder}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
-        ListEmptyComponent={
-          <Text style={styles.emptyText}>You have no orders yet.</Text>
-        }
-      />
+      <FlatList data={orders} renderItem={renderOrder} contentContainerStyle={{padding: 16}} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8FAF9',
-  },
-  list: {
-    padding: 16,
-  },
-  orderCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    shadowOffset: { width: 0, height: 2 },
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
-    paddingBottom: 10,
-    marginBottom: 10,
-  },
-  orderId: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#333',
-  },
-  statusBadge: {
-    borderRadius: 20,
-    paddingVertical: 4,
-    paddingHorizontal: 12,
-  },
-  statusText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  cardBody: {
-    marginBottom: 10,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  customerName: {
-    fontSize: 15,
-    color: '#444',
-    marginLeft: 8,
-  },
-  orderDate: {
-    fontSize: 15,
-    color: '#444',
-    marginLeft: 8,
-  },
-  cardFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 5,
-  },
-  orderTotal: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#2E8B57',
-  },
-  emptyText: {
-    textAlign: 'center',
-    marginTop: 50,
-    fontSize: 16,
-    color: '#777',
-  },
+  container: { flex: 1, backgroundColor: '#F4F7F6' },
+  orderCard: { backgroundColor: '#fff', borderRadius: 15, padding: 16, marginBottom: 15, elevation: 4 },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: '#eee', paddingBottom: 10, marginBottom: 10 },
+  orderId: { fontWeight: 'bold', fontSize: 16, color: '#333' },
+  statusBadge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 20 },
+  statusText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
+  detailRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 5 },
+  text: { marginLeft: 10, color: '#555' },
+  price: { marginLeft: 10, fontWeight: 'bold', color: '#2E8B57' },
+  actionBtn: { backgroundColor: '#2E8B57', flexDirection: 'row', justifyContent: 'center', padding: 12, borderRadius: 10, marginTop: 10 },
+  btnText: { color: '#fff', fontWeight: 'bold', marginLeft: 8 }
 });
