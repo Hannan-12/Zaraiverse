@@ -5,14 +5,23 @@ import {
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { db } from '../../services/firebase';
-import { collection, query, onSnapshot, doc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { collection, query, onSnapshot, doc, deleteDoc, updateDoc, where } from 'firebase/firestore'; // Added 'where'
+import { useAuth } from '../../contexts/AuthContext'; // Import to get current user
 
 export default function ManageProducts() {
+  const { user } = useAuth(); // Get current seller's info
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const q = query(collection(db, 'products'));
+    if (!user) return;
+
+    // ✅ Filter by sellerId so the list matches the dashboard count
+    const q = query(
+      collection(db, 'products'), 
+      where('sellerId', '==', user.uid)
+    );
+
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setProducts(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
       setLoading(false);
@@ -21,7 +30,7 @@ export default function ManageProducts() {
       setLoading(false);
     });
     return () => unsubscribe();
-  }, []);
+  }, [user]);
 
   const toggleStock = async (id, current) => {
     const next = current === 'In Stock' ? 'Out of Stock' : 'In Stock';
@@ -55,7 +64,13 @@ export default function ManageProducts() {
 
   return (
     <View style={styles.container}>
-      <FlatList data={products} renderItem={renderProduct} keyExtractor={item => item.id} contentContainerStyle={{padding: 16}} />
+      <FlatList 
+        data={products} 
+        renderItem={renderProduct} 
+        keyExtractor={item => item.id} 
+        contentContainerStyle={{padding: 16}} 
+        ListEmptyComponent={<Text style={{textAlign: 'center', marginTop: 20}}>No products found.</Text>}
+      />
     </View>
   );
 }

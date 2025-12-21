@@ -1,16 +1,8 @@
 import React, { useEffect, useState, useContext } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TouchableOpacity, 
-  FlatList, 
-  ActivityIndicator, 
-  Alert 
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { db } from '../../services/firebase';
-import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { AuthContext } from '../../contexts/AuthContext';
 import { format } from 'date-fns';
 
@@ -25,30 +17,22 @@ export default function OrdersScreen({ navigation }) {
       return;
     }
 
-    // Query orders for the current user
-    const q = query(
-      collection(db, 'orders'),
-      where('userId', '==', user.uid)
-      // Note: If you have indexing errors, remove orderBy temporarily or create the index in Firebase Console
-      // orderBy('createdAt', 'desc') 
-    );
+    const q = query(collection(db, 'orders'), where('userId', '==', user.uid));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const ordersList = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        // Handle Firestore Timestamp safely
-        createdAt: doc.data().createdAt ? doc.data().createdAt.toDate() : new Date()
-      }));
+      const ordersList = snapshot.docs.map(doc => {
+        const data = doc.data();
+        let dateObj = new Date();
+        if (data.createdAt) {
+          dateObj = typeof data.createdAt.toDate === 'function' ? data.createdAt.toDate() : new Date(data.createdAt);
+        }
+        return { id: doc.id, ...data, createdAt: dateObj };
+      });
       
-      // Sort manually if index is missing (Newest first)
       ordersList.sort((a, b) => b.createdAt - a.createdAt);
-      
       setOrders(ordersList);
       setLoading(false);
     }, (error) => {
-      console.error("Error fetching orders:", error);
-      Alert.alert("Error", "Could not load orders.");
       setLoading(false);
     });
 
@@ -56,20 +40,25 @@ export default function OrdersScreen({ navigation }) {
   }, [user]);
 
   const renderOrderItem = ({ item }) => {
-    // Generate a summary of items (e.g., "Wheat Seeds, Shovel + 1 more")
-    const itemNames = item.items.map(i => i.name).join(', ');
-    const summary = itemNames.length > 30 ? itemNames.substring(0, 30) + '...' : itemNames;
+    let summary = "";
+    if (item.orderType === 'Lease') {
+      summary = `Lease: ${item.productName || 'Machine'}`;
+    } else {
+      // ✅ FIX: Use optional chaining and fallback for items array
+      const names = item.items ? item.items.map(i => i.name).join(', ') : 'Purchase Details';
+      summary = names.length > 30 ? names.substring(0, 30) + '...' : names;
+    }
 
-    // Determine status color
-    let statusColor = '#FFA726'; // Pending (Orange)
-    if (item.status === 'Shipped') statusColor = '#42A5F5'; // Blue
-    if (item.status === 'Delivered') statusColor = '#66BB6A'; // Green
-    if (item.status === 'Cancelled') statusColor = '#EF5350'; // Red
+    let statusColor = '#FFA726'; 
+    if (['Processing', 'Downpayment Paid'].includes(item.status)) statusColor = '#2E8B57'; 
+    if (item.status === 'Shipped') statusColor = '#42A5F5';
+    if (item.status === 'Delivered') statusColor = '#66BB6A';
+    if (item.status === 'Rejected') statusColor = '#EF5350';
 
     return (
       <View style={styles.orderCard}>
         <View style={styles.cardHeader}>
-          <Text style={styles.orderId}>Order #{item.id.slice(0, 8).toUpperCase()}</Text>
+          <Text style={styles.orderId}>Order #{item.id.slice(-6).toUpperCase()}</Text>
           <View style={[styles.statusBadge, { backgroundColor: statusColor + '20' }]}>
             <Text style={[styles.statusText, { color: statusColor }]}>{item.status}</Text>
           </View>
@@ -82,160 +71,69 @@ export default function OrdersScreen({ navigation }) {
           </View>
           
           <View style={styles.row}>
-            <Ionicons name="cube-outline" size={16} color="#666" />
+            <Ionicons name={item.orderType === 'Lease' ? "document-text-outline" : "cube-outline"} size={16} color="#666" />
             <Text style={styles.itemsText}>{summary}</Text>
           </View>
+
+          {item.orderType === 'Lease' && (
+            <Text style={styles.leasePrice}>Installment: Rs. {item.leaseDetails?.monthlyInstallment}/mo</Text>
+          )}
 
           <View style={styles.divider} />
 
           <View style={styles.footerRow}>
-            <Text style={styles.totalLabel}>Total Amount</Text>
+            <Text style={styles.totalLabel}>{item.orderType === 'Lease' ? 'Total Price' : 'Amount'}</Text>
             <Text style={styles.totalAmount}>Rs. {item.totalAmount}</Text>
           </View>
+
+          {/* Action button for Lease installments */}
+          {item.orderType === 'Lease' && (item.status === 'Processing' || item.status === 'Downpayment Paid') && (
+            <TouchableOpacity 
+              style={styles.payBtn}
+              onPress={() => navigation.navigate('LeasePayment', { order: item })}
+            >
+              <Text style={styles.payBtnText}>View Installment Schedule</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     );
   };
 
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#2E8B57" />
-      </View>
-    );
-  }
+  if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#2E8B57" /></View>;
 
   return (
     <View style={styles.container}>
-      <View style={styles.headerContainer}>
-        <Text style={styles.header}>📜 My Orders</Text>
-        <Text style={styles.subHeader}>Track your purchase history</Text>
-      </View>
-
       <FlatList
         data={orders}
         renderItem={renderOrderItem}
         keyExtractor={item => item.id}
         contentContainerStyle={styles.list}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Ionicons name="receipt-outline" size={60} color="#ccc" />
-            <Text style={styles.emptyText}>No orders placed yet.</Text>
-          </View>
-        }
+        ListEmptyComponent={<Text style={styles.empty}>No orders found.</Text>}
       />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  headerContainer: {
-    padding: 20,
-    backgroundColor: '#F8FFF9',
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-    alignItems: 'center',
-  },
-  header: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#2e7d32',
-    marginBottom: 5,
-  },
-  subHeader: {
-    fontSize: 14,
-    color: '#555',
-  },
-  list: {
-    padding: 16,
-  },
-  orderCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#eee',
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    shadowOffset: { width: 0, height: 2 },
-    overflow: 'hidden'
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 12,
-    backgroundColor: '#fafafa',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0'
-  },
-  orderId: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#333'
-  },
-  statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    textTransform: 'uppercase'
-  },
-  cardBody: {
-    padding: 15,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  dateText: {
-    marginLeft: 8,
-    color: '#666',
-    fontSize: 14
-  },
-  itemsText: {
-    marginLeft: 8,
-    color: '#333',
-    fontSize: 14,
-    flex: 1,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#eee',
-    marginVertical: 10,
-  },
-  footerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  totalLabel: {
-    fontSize: 14,
-    color: '#555'
-  },
-  totalAmount: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#2E8B57'
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    marginTop: 60,
-  },
-  emptyText: {
-    marginTop: 10,
-    color: '#999',
-    fontSize: 16,
-  },
+  container: { flex: 1, backgroundColor: '#F8FAF9' },
+  center: { flex: 1, justifyContent: 'center' },
+  list: { padding: 16 },
+  orderCard: { backgroundColor: '#fff', borderRadius: 12, marginBottom: 16, elevation: 3, borderWidth: 1, borderColor: '#eee' },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', padding: 12, backgroundColor: '#f9f9f9', borderBottomWidth: 1, borderBottomColor: '#eee' },
+  orderId: { fontWeight: 'bold', fontSize: 14 },
+  statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  statusText: { fontSize: 11, fontWeight: 'bold' },
+  cardBody: { padding: 15 },
+  row: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  dateText: { marginLeft: 8, color: '#666', fontSize: 13 },
+  itemsText: { marginLeft: 8, color: '#333', fontSize: 14, fontWeight: '600' },
+  leasePrice: { color: '#2E8B57', fontSize: 12, fontWeight: 'bold', marginLeft: 24, marginTop: -5 },
+  divider: { height: 1, backgroundColor: '#eee', marginVertical: 10 },
+  footerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  totalLabel: { fontSize: 13, color: '#777' },
+  totalAmount: { fontSize: 18, fontWeight: 'bold', color: '#2E8B57' },
+  payBtn: { backgroundColor: '#2E8B57', padding: 12, borderRadius: 10, marginTop: 15, alignItems: 'center' },
+  payBtnText: { color: '#fff', fontWeight: 'bold' },
+  empty: { textAlign: 'center', marginTop: 100, color: '#999' }
 });

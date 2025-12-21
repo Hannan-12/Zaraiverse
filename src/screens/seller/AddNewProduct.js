@@ -1,15 +1,19 @@
 import React, { useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, 
-  ScrollView, Alert, ActivityIndicator, Image,
+  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, Image,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { db, auth } from '../../services/firebase';
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 export default function AddNewProduct({ navigation }) {
-  const [product, setProduct] = useState({ name: '', price: '', description: '', category: '' });
+  const [product, setProduct] = useState({
+    name: '',
+    price: '',
+    description: '',
+    category: 'Seed', // Default category
+  });
   const [imageUri, setImageUri] = useState(null);
   const [base64Image, setBase64Image] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -19,7 +23,7 @@ export default function AddNewProduct({ navigation }) {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.2, // Low quality to stay under Firestore 1MB limit
+      quality: 0.2,
       base64: true,
     });
 
@@ -31,7 +35,7 @@ export default function AddNewProduct({ navigation }) {
 
   const handleSubmit = async () => {
     if (!product.name || !product.price || !base64Image) {
-      Alert.alert('Missing Info', 'Please fill all fields and pick an image.');
+      Alert.alert('Error', 'Please fill all fields and add an image.');
       return;
     }
 
@@ -39,16 +43,16 @@ export default function AddNewProduct({ navigation }) {
     try {
       await addDoc(collection(db, 'products'), {
         ...product,
-        price: parseFloat(product.price) || 0,
-        image: base64Image, // Saves the actual image data
+        price: parseFloat(product.price),
+        image: base64Image,
         sellerId: auth.currentUser.uid,
         stockStatus: 'In Stock',
-        createdAt: new Date(),
+        createdAt: serverTimestamp(),
       });
-      Alert.alert('Success', 'Product listed successfully!');
+      Alert.alert('Success', 'Product listed!');
       navigation.goBack();
     } catch (error) {
-      Alert.alert('Error', 'Permission denied or connection issue.');
+      Alert.alert('Error', 'Failed to add product.');
     } finally {
       setIsLoading(false);
     }
@@ -56,21 +60,46 @@ export default function AddNewProduct({ navigation }) {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.header}>🛍️ Add New Product</Text>
+      <Text style={styles.header}>Add New Product</Text>
+      
       <View style={styles.formCard}>
         <TouchableOpacity style={styles.imagePicker} onPress={handlePickImage}>
-          {imageUri ? <Image source={{ uri: imageUri }} style={styles.preview} /> : (
-            <View style={styles.placeholder}>
-              <MaterialIcons name="add-a-photo" size={40} color="#2E8B57" />
-              <Text style={styles.placeholderText}>Tap to add image</Text>
-            </View>
-          )}
+          {imageUri ? <Image source={{ uri: imageUri }} style={styles.preview} /> : <Text>Pick Image</Text>}
         </TouchableOpacity>
 
-        <TextInput style={styles.input} placeholder="Product Name" onChangeText={(t) => setProduct({...product, name: t})} />
-        <TextInput style={styles.input} placeholder="Price (Rs.)" keyboardType="numeric" onChangeText={(t) => setProduct({...product, price: t})} />
-        <TextInput style={styles.input} placeholder="Category" onChangeText={(t) => setProduct({...product, category: t})} />
-        <TextInput style={[styles.input, styles.textArea]} placeholder="Description" multiline onChangeText={(t) => setProduct({...product, description: t})} />
+        <TextInput 
+          style={styles.input} 
+          placeholder="Product Name" 
+          onChangeText={(val) => setProduct({...product, name: val})} 
+        />
+        
+        <TextInput 
+          style={styles.input} 
+          placeholder="Price (Rs)" 
+          keyboardType="numeric" 
+          onChangeText={(val) => setProduct({...product, price: val})} 
+        />
+
+        {/* Category Selection */}
+        <Text style={styles.label}>Category</Text>
+        <View style={styles.categoryRow}>
+          {['Seed', 'Machine'].map((cat) => (
+            <TouchableOpacity 
+              key={cat} 
+              style={[styles.catBtn, product.category === cat && styles.activeCat]}
+              onPress={() => setProduct({...product, category: cat})}
+            >
+              <Text style={{color: product.category === cat ? '#fff' : '#333'}}>{cat}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <TextInput 
+          style={[styles.input, {height: 80}]} 
+          placeholder="Description" 
+          multiline 
+          onChangeText={(val) => setProduct({...product, description: val})} 
+        />
 
         <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit} disabled={isLoading}>
           {isLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>List Product</Text>}
@@ -81,15 +110,16 @@ export default function AddNewProduct({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 20, backgroundColor: '#F8FAF9', flexGrow: 1 },
-  header: { fontSize: 26, fontWeight: '800', color: '#2E8B57', textAlign: 'center', marginBottom: 20 },
-  formCard: { backgroundColor: '#fff', borderRadius: 20, padding: 20, elevation: 4 },
-  imagePicker: { height: 180, backgroundColor: '#f0f0f0', borderRadius: 15, marginBottom: 20, overflow: 'hidden' },
-  preview: { width: '100%', height: '100%' },
-  placeholder: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  placeholderText: { color: '#2E8B57', marginTop: 5, fontWeight: '600' },
-  input: { borderBottomWidth: 1, borderBottomColor: '#eee', padding: 12, fontSize: 16, marginBottom: 15 },
-  textArea: { height: 80, textAlignVertical: 'top' },
-  submitBtn: { backgroundColor: '#2E8B57', padding: 16, borderRadius: 15, marginTop: 10, alignItems: 'center' },
-  btnText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+  container: { padding: 20, backgroundColor: '#F8FAF9' },
+  header: { fontSize: 24, fontWeight: 'bold', color: '#2E8B57', textAlign: 'center', marginBottom: 20 },
+  formCard: { backgroundColor: '#fff', borderRadius: 15, padding: 20, elevation: 4 },
+  imagePicker: { height: 150, backgroundColor: '#f0f0f0', borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
+  preview: { width: '100%', height: '100%', borderRadius: 10 },
+  input: { borderBottomWidth: 1, borderBottomColor: '#eee', padding: 10, marginBottom: 15 },
+  label: { fontWeight: 'bold', marginBottom: 10 },
+  categoryRow: { flexDirection: 'row', marginBottom: 20 },
+  catBtn: { flex: 1, padding: 10, alignItems: 'center', backgroundColor: '#f0f0f0', marginHorizontal: 5, borderRadius: 5 },
+  activeCat: { backgroundColor: '#2E8B57' },
+  submitBtn: { backgroundColor: '#2E8B57', padding: 15, borderRadius: 10, alignItems: 'center' },
+  btnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 }
 });
