@@ -1,6 +1,5 @@
 // src/navigation/AppNavigator.js
 import React, { useContext } from 'react';
-// Remove NavigationContainer from this import
 import { createStackNavigator } from '@react-navigation/stack';
 import { AuthContext } from '../contexts/AuthContext';
 
@@ -11,7 +10,8 @@ import OTPScreen from '../screens/auth/OTPScreen';
 import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
 
 // Role-Based Stacks
-import FarmerTabs from './FarmerTabs';
+// ✅ Updated: Import FarmerStack instead of FarmerTabs to fix navigation errors
+import FarmerStack from './FarmerStack'; 
 import SellerStack from './SellerStack';
 import ExpertStack from './ExpertStack';
 import AdminStack from './AdminStack';
@@ -23,13 +23,13 @@ export default function AppNavigator() {
 
   if (loading) return null; 
 
-  // ✅ REMOVED <NavigationContainer> from here
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {user ? (
         // Role-Based Routing
         <>
-          {user.role === 'farmer' && <Stack.Screen name="FarmerHome" component={FarmerTabs} />}
+          {/* ✅ Updated: Changed component to FarmerStack */}
+          {user.role === 'farmer' && <Stack.Screen name="FarmerHome" component={FarmerStack} />}
           {user.role === 'seller' && <Stack.Screen name="SellerHome" component={SellerStack} />}
           {user.role === 'expert' && <Stack.Screen name="ExpertHome" component={ExpertStack} />}
           {user.role === 'admin' && <Stack.Screen name="AdminHome" component={AdminStack} />}
