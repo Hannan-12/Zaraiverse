@@ -1,3 +1,4 @@
+// src/screens/farmer/LeaseConfirmationScreen.js
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { db } from '../../services/firebase';
@@ -5,41 +6,54 @@ import { doc, updateDoc, onSnapshot } from 'firebase/firestore';
 import { format, addMonths } from 'date-fns';
 
 export default function LeasePaymentScreen({ route }) {
-  const { order: initialOrder } = route.params;
+  // Safe destructuring with fallback to prevent crash
+  const initialOrder = route?.params?.order;
   const [order, setOrder] = useState(initialOrder);
   const [loading, setLoading] = useState(false);
 
-  // Helper function to safely handle the date regardless of format
+  // Helper function to safely handle the date
   const getOrderDate = (dateField) => {
     if (!dateField) return new Date();
-    // If it's already a JS Date object (passed from OrdersScreen)
     if (dateField instanceof Date) return dateField;
-    // If it's a Firestore Timestamp from the real-time listener
     if (typeof dateField.toDate === 'function') return dateField.toDate();
-    // Fallback for string or other formats
     return new Date(dateField);
   };
 
-  // Real-time listener for the specific order to reflect early payments
   useEffect(() => {
+    // Only set up listener if we have a valid order ID from the database
+    if (!order?.id) return;
+
     const unsub = onSnapshot(doc(db, 'orders', order.id), (docSnap) => {
       if (docSnap.exists()) {
         setOrder({ id: docSnap.id, ...docSnap.data() });
       }
     });
     return () => unsub();
-  }, []);
+  }, [order?.id]);
+
+  // CRASH PROTECTION: If order data is missing, show a loading state
+  if (!order || !order.leaseDetails) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#2E8B57" />
+        <Text style={{marginTop: 10}}>Loading lease details...</Text>
+      </View>
+    );
+  }
 
   const paidCount = order.paidInstallments || 0;
-  const duration = parseInt(order.leaseDetails?.duration) || 6;
-  
-  // ✅ Use the helper function to avoid .toDate() crash
+  const duration = parseInt(order.leaseDetails.duration) || 6;
   const baseDate = getOrderDate(order.createdAt);
   const dueDates = Array.from({ length: duration }, (_, i) => addMonths(baseDate, i + 1));
 
   const handleInstallmentPayment = async (isEarly = false) => {
+    if (!order.id) {
+        Alert.alert("Order Not Saved", "This lease hasn't been saved to the database yet.");
+        return;
+    }
+
     if (paidCount >= duration) {
-      Alert.alert("Complete!", "All installments for this machine are paid.");
+      Alert.alert("Complete!", "All installments are paid.");
       return;
     }
 
@@ -47,14 +61,10 @@ export default function LeasePaymentScreen({ route }) {
     try {
       const newPaidCount = paidCount + 1;
       const updateData = { paidInstallments: newPaidCount };
-      
-      // If last installment, mark order as fully delivered
-      if (newPaidCount === duration) {
-        updateData.status = 'Delivered';
-      }
+      if (newPaidCount === duration) updateData.status = 'Delivered';
 
       await updateDoc(doc(db, 'orders', order.id), updateData);
-      Alert.alert("Payment Success! ✅", isEarly ? "Early installment received." : "Installment paid.");
+      Alert.alert("Success ✅", isEarly ? "Early payment received." : "Installment paid.");
     } catch (e) {
       Alert.alert("Error", "Payment failed. Check your connection.");
     } finally {
@@ -75,7 +85,7 @@ export default function LeasePaymentScreen({ route }) {
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
             <Text style={styles.statLabel}>Monthly</Text>
-            <Text style={styles.statVal}>Rs. {order.leaseDetails?.monthlyInstallment}</Text>
+            <Text style={styles.statVal}>Rs. {order.leaseDetails.monthlyInstallment}</Text>
           </View>
         </View>
 
@@ -111,6 +121,7 @@ export default function LeasePaymentScreen({ route }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8FAF9' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header: { fontSize: 22, fontWeight: 'bold', marginBottom: 15, color: '#333' },
   statCard: { backgroundColor: '#2E8B57', flexDirection: 'row', padding: 20, borderRadius: 15, marginBottom: 20, elevation: 5 },
   statItem: { flex: 1, alignItems: 'center' },

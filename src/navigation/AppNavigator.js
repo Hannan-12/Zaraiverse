@@ -1,63 +1,51 @@
+// src/navigation/AppNavigator.js
 import React, { useContext } from 'react';
-import { createNativeStackNavigator } from '@react-navigation/native-stack'; 
-import { View, ActivityIndicator } from 'react-native';
+// Remove NavigationContainer from this import
+import { createStackNavigator } from '@react-navigation/stack';
 import { AuthContext } from '../contexts/AuthContext';
 
+// Auth Screens
 import LoginScreen from '../screens/auth/LoginScreen';
 import RegisterScreen from '../screens/auth/RegisterScreen';
 import OTPScreen from '../screens/auth/OTPScreen';
-import FarmerStack from './FarmerStack';
+import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
+
+// Role-Based Stacks
+import FarmerTabs from './FarmerTabs';
 import SellerStack from './SellerStack';
 import ExpertStack from './ExpertStack';
 import AdminStack from './AdminStack';
 
-const Stack = createNativeStackNavigator(); 
-
-const roleComponentMap = {
-  farmer: FarmerStack,
-  seller: SellerStack,
-  expert: ExpertStack,
-  admin: AdminStack,
-};
+const Stack = createStackNavigator();
 
 export default function AppNavigator() {
-  const { user, isLoading } = useContext(AuthContext);
+  const { user, loading } = useContext(AuthContext);
 
-  if (isLoading) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#2E8B57" />
-      </View>
-    );
-  }
+  if (loading) return null; 
 
-  // 1. If user is not logged in
-  if (!user) {
-    return (
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="Login" component={LoginScreen} />
-        <Stack.Screen name="Register" component={RegisterScreen} />
-      </Stack.Navigator>
-    );
-  }
-  if (user.status === 'pending' && user.role !== 'admin') {
-    return (
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="OTP" component={OTPScreen} />
-      </Stack.Navigator>
-    );
-  }
-
-  // 3. If user is 'active', show their specific Role Stack
-  const UserStackComponent = roleComponentMap[user.role];
-
+  // ✅ REMOVED <NavigationContainer> from here
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      {UserStackComponent ? (
-        <Stack.Screen name="UserStack" component={UserStackComponent} />
+      {user ? (
+        // Role-Based Routing
+        <>
+          {user.role === 'farmer' && <Stack.Screen name="FarmerHome" component={FarmerTabs} />}
+          {user.role === 'seller' && <Stack.Screen name="SellerHome" component={SellerStack} />}
+          {user.role === 'expert' && <Stack.Screen name="ExpertHome" component={ExpertStack} />}
+          {user.role === 'admin' && <Stack.Screen name="AdminHome" component={AdminStack} />}
+        </>
       ) : (
-        // Fallback to Login if role is undefined
-        <Stack.Screen name="Login" component={LoginScreen} />
+        // Auth Stack
+        <>
+          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="Register" component={RegisterScreen} />
+          <Stack.Screen name="OTP" component={OTPScreen} />
+          <Stack.Screen 
+            name="ForgotPassword" 
+            component={ForgotPasswordScreen} 
+            options={{ headerShown: true, title: 'Reset Password' }} 
+          />
+        </>
       )}
     </Stack.Navigator>
   );

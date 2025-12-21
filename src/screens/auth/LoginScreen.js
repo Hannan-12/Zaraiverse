@@ -1,185 +1,144 @@
-import React, { useState } from 'react';
+// src/screens/auth/LoginScreen.js
+import React, { useState, useContext } from 'react';
 import {
   View,
-  TextInput,
   Text,
+  TextInput,
+  TouchableOpacity,
   StyleSheet,
   Image,
-  TouchableOpacity,
-  ActivityIndicator,
   Alert,
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  ScrollView
 } from 'react-native';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../../services/firebase';
+import { AuthContext } from '../../contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const { login, loading } = useContext(AuthContext);
 
   const handleLogin = async () => {
-    // 🔍 Basic validation
     if (!email || !password) {
-      Alert.alert('Error', 'Please enter both email and password.');
+      Alert.alert('Error', 'Please fill in all fields');
       return;
     }
-
-    setLoading(true);
-    try {
-      await signInWithEmailAndPassword(auth, email, password);
-
-      /**
-       * ✅ IMPORTANT:
-       * - AuthContext will sync user profile
-       * - Blocked users will be logged out automatically
-       * - Pending users will be routed to OTP screen by AppNavigator
-       *
-       * Optional alert (NOT recommended here to avoid race conditions):
-       *
-       * Alert.alert(
-       *   "Account Pending",
-       *   "Your account is verified but awaiting Admin approval."
-       * );
-       */
-    } catch (error) {
-      Alert.alert('Login Error', error.message);
-    } finally {
-      setLoading(false);
+    const result = await login(email, password);
+    if (!result.success) {
+      Alert.alert('Login Failed', result.error);
     }
   };
 
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={{ flex: 1 }}
+      style={styles.container}
     >
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <Image source={require('../../assets/ZaraiVerse.png')} style={styles.logo} />
+      <View style={styles.inner}>
+        <Image
+          source={require('../../assets/ZaraiVerse.png')}
+          style={styles.logo}
+          resizeMode="contain"
+        />
+        <Text style={styles.title}>Welcome Back</Text>
+        <Text style={styles.subtitle}>Sign in to continue to ZaraiVerse</Text>
 
-        <Text style={styles.title}>ZaraiVerse</Text>
-
-        {/* Email */}
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>Email</Text>
+          <Ionicons name="mail-outline" size={20} color="#666" style={styles.inputIcon} />
           <TextInput
-            placeholder="Enter your email"
+            style={styles.input}
+            placeholder="Email Address"
             value={email}
             onChangeText={setEmail}
-            style={styles.input}
             keyboardType="email-address"
             autoCapitalize="none"
           />
         </View>
 
-        {/* Password */}
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>Password</Text>
-          <View style={styles.passwordWrapper}>
-            <TextInput
-              placeholder="Enter your password"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!passwordVisible}
-              style={[styles.input, { flex: 1, borderBottomWidth: 0 }]}
+          <Ionicons name="lock-closed-outline" size={20} color="#666" style={styles.inputIcon} />
+          <TextInput
+            style={styles.input}
+            placeholder="Password"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry={!showPassword}
+          />
+          <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+            <Ionicons
+              name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+              size={20}
+              color="#666"
             />
-            <TouchableOpacity
-              onPress={() => setPasswordVisible(!passwordVisible)}
-              style={styles.eyeIcon}
-            >
-              <Ionicons
-                name={passwordVisible ? 'eye-off' : 'eye'}
-                size={22}
-                color="#888"
-              />
-            </TouchableOpacity>
-          </View>
+          </TouchableOpacity>
         </View>
 
-        {/* Login Button */}
-        <TouchableOpacity
-          style={styles.signInButton}
-          onPress={handleLogin}
+        <TouchableOpacity 
+          style={styles.loginBtn} 
+          onPress={handleLogin} 
           disabled={loading}
         >
           {loading ? (
-            <ActivityIndicator color="#FFFFFF" />
+            <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.signInButtonText}>Sign In</Text>
+            <Text style={styles.loginBtnText}>Login</Text>
           )}
         </TouchableOpacity>
 
-        {/* Register */}
-        <TouchableOpacity
-          style={styles.signUpContainer}
-          onPress={() => navigation.navigate('Register')}
+        {/* --- ADDED: Forgot Password Link --- */}
+        <TouchableOpacity 
+          onPress={() => navigation.navigate('ForgotPassword')}
+          style={styles.forgotContainer}
         >
-          <Text style={styles.signUpText}>
-            Don't have an account? <Text style={styles.signUpLink}>Sign Up</Text>
-          </Text>
+          <Text style={styles.forgotText}>Forgot Password?</Text>
         </TouchableOpacity>
-      </ScrollView>
+
+        <View style={styles.registerContainer}>
+          <Text style={styles.noAccountText}>Don't have an account? </Text>
+          <TouchableOpacity onPress={() => navigation.navigate('Register')}>
+            <Text style={styles.registerLink}>Register</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 25,
-    backgroundColor: '#FFFFFF',
-    paddingBottom: 30
-  },
-  logo: {
-    width: 150,
-    height: 150,
-    alignSelf: 'center',
-    marginBottom: 20
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 20,
-    color: '#000'
-  },
-  inputContainer: { marginBottom: 15 },
-  label: { fontSize: 14, color: '#333', marginBottom: 5 },
-  input: {
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 8,
-    paddingHorizontal: 15,
-    paddingVertical: 12,
-    fontSize: 16
-  },
-  passwordWrapper: {
+  container: { flex: 1, backgroundColor: '#fff' },
+  inner: { flex: 1, padding: 24, justifyContent: 'center', alignItems: 'center' },
+  logo: { width: 150, height: 150, marginBottom: 20 },
+  title: { fontSize: 28, fontWeight: 'bold', color: '#2E8B57', marginBottom: 8 },
+  subtitle: { fontSize: 16, color: '#666', marginBottom: 32 },
+  inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 8
+    backgroundColor: '#f5f5f5',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+    width: '100%',
+    height: 56,
   },
-  eyeIcon: { paddingHorizontal: 10 },
-  signInButton: {
-    backgroundColor: '#8BC34A',
-    paddingVertical: 15,
-    borderRadius: 8,
+  inputIcon: { marginRight: 12 },
+  input: { flex: 1, fontSize: 16, color: '#333' },
+  loginBtn: {
+    backgroundColor: '#2E8B57',
+    width: '100%',
+    height: 56,
+    borderRadius: 12,
+    justifyContent: 'center',
     alignItems: 'center',
+    marginTop: 16,
     elevation: 2,
-    marginTop: 10
   },
-  signInButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: 'bold'
-  },
-  signUpContainer: { marginTop: 20, alignItems: 'center' },
-  signUpText: { fontSize: 14, color: '#555' },
-  signUpLink: { fontWeight: 'bold', color: '#8BC34A' }
+  loginBtnText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+  forgotContainer: { marginTop: 15 },
+  forgotText: { color: '#2E8B57', fontWeight: '600' },
+  registerContainer: { flexDirection: 'row', marginTop: 32 },
+  noAccountText: { color: '#666', fontSize: 15 },
+  registerLink: { color: '#2E8B57', fontSize: 15, fontWeight: 'bold' },
 });

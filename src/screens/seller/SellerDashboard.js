@@ -50,24 +50,26 @@ export default function SellerDashboard({ navigation }) {
       snapshot.docs.forEach(docSnap => {
         const data = docSnap.data();
 
-        // --- Active Orders Logic ---
-        // Orders are active if they are Pending, Processing, or have a Paid Downpayment but aren't Delivered yet.
-        if (['Pending', 'Processing', 'Downpayment Paid'].includes(data.status)) {
+        // Active Orders Logic: Includes Pending, Awaiting Downpayment, and Active leases
+        if (['Pending', 'Processing', 'Awaiting Downpayment', 'Active'].includes(data.status)) {
           active++;
         }
 
-        // --- Revenue Calculation Logic ---
-        // 1. For Regular Purchases: Add total if Delivered
-        if (data.orderType !== 'Lease' && data.status === 'Delivered') {
-          totalRev += parseFloat(data.totalAmount) || 0;
-        }
-        
-        // 2. For Lease Orders: Add the Downpayment to revenue once it is paid
-        if (data.orderType === 'Lease' && (data.status === 'Downpayment Paid' || data.status === 'Delivered')) {
-          const dp = parseFloat(data.leaseDetails?.downpayment) || 0;
-          totalRev += dp;
-          
-          // Note: If you add installment payment features later, you would add them here too.
+        // Revenue Calculation Logic
+        if (data.orderType !== 'Lease') {
+          // Regular Purchases: Count if delivered
+          if (data.status === 'Delivered') {
+            totalRev += parseFloat(data.totalAmount) || 0;
+          }
+        } else {
+          // Lease Orders: Revenue = Downpayment + all paid installments
+          if (['Active', 'Delivered'].includes(data.status)) {
+            const dp = parseFloat(data.leaseDetails?.downpayment) || 0;
+            const monthly = parseFloat(data.leaseDetails?.monthlyInstallment) || 0;
+            const installmentsPaid = parseInt(data.paidInstallments) || 0;
+            
+            totalRev += dp + (monthly * installmentsPaid);
+          }
         }
       });
 
@@ -134,6 +136,7 @@ export default function SellerDashboard({ navigation }) {
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         
         <Text style={styles.sectionTitle}>Store Performance</Text>
+        {/* FIXED: Changed from div to View */}
         <View style={styles.statsContainer}>
           <View style={[styles.statBox, { borderLeftColor: '#4CAF50' }]}>
             {loadingStats ? <ActivityIndicator size="small" /> : <Text style={styles.statNumber}>{stats.totalProducts}</Text>}
@@ -144,7 +147,7 @@ export default function SellerDashboard({ navigation }) {
             <Text style={styles.statLabel}>Active Orders</Text>
           </View>
           <View style={[styles.statBox, { borderLeftColor: '#2196F3' }]}>
-            {loadingStats ? <ActivityIndicator size="small" /> : <Text style={styles.statNumber}>Rs. {stats.revenue}</Text>}
+            {loadingStats ? <ActivityIndicator size="small" /> : <Text style={styles.statNumber}>Rs. {stats.revenue.toLocaleString()}</Text>}
             <Text style={styles.statLabel}>Total Earned</Text>
           </View>
         </View>
@@ -206,7 +209,7 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#333', marginBottom: 15, marginTop: 10 },
   statsContainer: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 25 },
   statBox: { backgroundColor: '#fff', width: '31%', padding: 12, borderRadius: 15, alignItems: 'center', borderLeftWidth: 5, elevation: 4 },
-  statNumber: { fontSize: 14, fontWeight: 'bold', color: '#333', textAlign: 'center' },
+  statNumber: { fontSize: 13, fontWeight: 'bold', color: '#333', textAlign: 'center' },
   statLabel: { fontSize: 11, color: '#777', marginTop: 4 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
   cardContainer: { width: '48%', height: 130, marginBottom: 16, borderRadius: 20, elevation: 5 },

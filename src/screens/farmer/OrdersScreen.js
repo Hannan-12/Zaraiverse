@@ -1,3 +1,4 @@
+// src/screens/farmer/OrdersScreen.js
 import React, { useEffect, useState, useContext } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,6 +18,7 @@ export default function OrdersScreen({ navigation }) {
       return;
     }
 
+    // Query matches 'userId' as set in the updated LeaseCalculator
     const q = query(collection(db, 'orders'), where('userId', '==', user.uid));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -33,6 +35,7 @@ export default function OrdersScreen({ navigation }) {
       setOrders(ordersList);
       setLoading(false);
     }, (error) => {
+      console.error("Firestore Error:", error);
       setLoading(false);
     });
 
@@ -44,14 +47,14 @@ export default function OrdersScreen({ navigation }) {
     if (item.orderType === 'Lease') {
       summary = `Lease: ${item.productName || 'Machine'}`;
     } else {
-      // ✅ FIX: Use optional chaining and fallback for items array
       const names = item.items ? item.items.map(i => i.name).join(', ') : 'Purchase Details';
       summary = names.length > 30 ? names.substring(0, 30) + '...' : names;
     }
 
-    let statusColor = '#FFA726'; 
-    if (['Processing', 'Downpayment Paid'].includes(item.status)) statusColor = '#2E8B57'; 
-    if (item.status === 'Shipped') statusColor = '#42A5F5';
+    // Dynamic color logic based on new status workflow
+    let statusColor = '#FFA726'; // Default (Pending)
+    if (['Awaiting Downpayment', 'Processing'].includes(item.status)) statusColor = '#2E8B57'; 
+    if (item.status === 'Active' || item.status === 'Shipped') statusColor = '#42A5F5';
     if (item.status === 'Delivered') statusColor = '#66BB6A';
     if (item.status === 'Rejected') statusColor = '#EF5350';
 
@@ -67,7 +70,7 @@ export default function OrdersScreen({ navigation }) {
         <View style={styles.cardBody}>
           <View style={styles.row}>
             <Ionicons name="calendar-outline" size={16} color="#666" />
-            <Text style={styles.dateText}>{format(item.createdAt, 'MMM d, yyyy • h:mm a')}</Text>
+            <Text style={styles.dateText}>{format(item.createdAt, 'MMM d, yyyy')}</Text>
           </View>
           
           <View style={styles.row}>
@@ -82,17 +85,20 @@ export default function OrdersScreen({ navigation }) {
           <View style={styles.divider} />
 
           <View style={styles.footerRow}>
-            <Text style={styles.totalLabel}>{item.orderType === 'Lease' ? 'Total Price' : 'Amount'}</Text>
-            <Text style={styles.totalAmount}>Rs. {item.totalAmount}</Text>
+            <Text style={styles.totalLabel}>{item.orderType === 'Lease' ? 'Total Lease' : 'Amount'}</Text>
+            <Text style={styles.totalAmount}>Rs. {item.totalAmount || item.price}</Text>
           </View>
 
-          {/* Action button for Lease installments */}
-          {item.orderType === 'Lease' && (item.status === 'Processing' || item.status === 'Downpayment Paid') && (
+          {/* ✅ FIXED CONDITION: Show button for all active lease states */}
+          {item.orderType === 'Lease' && 
+           ['Pending', 'Awaiting Downpayment', 'Active', 'Delivered'].includes(item.status) && (
             <TouchableOpacity 
               style={styles.payBtn}
               onPress={() => navigation.navigate('LeasePayment', { order: item })}
             >
-              <Text style={styles.payBtnText}>View Installment Schedule</Text>
+              <Text style={styles.payBtnText}>
+                {item.status === 'Pending' ? 'Check Status' : 'View Installments'}
+              </Text>
             </TouchableOpacity>
           )}
         </View>

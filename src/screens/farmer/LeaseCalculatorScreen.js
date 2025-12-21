@@ -1,24 +1,63 @@
 // src/screens/farmer/LeaseCalculatorScreen.js
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useState, useContext } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { db } from '../../services/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { AuthContext } from '../../contexts/AuthContext';
 
 export default function LeaseCalculatorScreen({ route, navigation }) {
   const { product } = route.params;
+  const { user } = useContext(AuthContext);
+  const [loading, setLoading] = useState(false);
   const [months, setMonths] = useState(6);
 
-  const INTEREST_RATE = 0.12; // 12% interest
+  const INTEREST_RATE = 0.12; 
   const downpayment = product.price * 0.20;
   const remainingPrincipal = product.price - downpayment;
-  
-  // Calculate total with 12% interest on the remaining amount
-  const interestAmount = remainingPrincipal * INTEREST_RATE;
-  const totalWithInterest = remainingPrincipal + interestAmount;
+  const totalWithInterest = remainingPrincipal + (remainingPrincipal * INTEREST_RATE);
   const monthlyInstallment = totalWithInterest / months;
+
+  const handleSendRequest = async () => {
+    if (!user) {
+        Alert.alert("Error", "You must be logged in to submit a request.");
+        return;
+    }
+
+    setLoading(true);
+    try {
+      // ✅ Matches field names in OrdersScreen and SellerOrders
+      await addDoc(collection(db, 'orders'), {
+        userId: user.uid,           // Matches OrdersScreen query
+        userName: user.displayName || 'Farmer', // Matches SellerOrders display
+        sellerId: product.sellerId, // Matches SellerOrders query
+        productName: product.name,
+        productId: product.id,
+        orderType: 'Lease',        // CRITICAL: Tells app this is a lease
+        status: 'Pending',         // Matches SellerOrders button check
+        totalAmount: totalWithInterest.toFixed(0),
+        paidInstallments: 0,
+        createdAt: serverTimestamp(),
+        leaseDetails: {
+          duration: months,
+          downpayment: downpayment.toFixed(0),
+          monthlyInstallment: monthlyInstallment.toFixed(0),
+          totalLeaseBalance: totalWithInterest.toFixed(0),
+          interestRate: '12%'
+        }
+      });
+
+      Alert.alert("Success", "Request sent! Check your 'Orders' tab for updates.");
+      navigation.navigate('Orders');
+    } catch (error) {
+      Alert.alert("Error", "Could not send request.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
       <Text style={styles.header}>Lease Plan: {product.name}</Text>
-      
       <View style={styles.card}>
         <View style={styles.row}>
           <Text style={styles.label}>Product Price:</Text>
@@ -26,47 +65,24 @@ export default function LeaseCalculatorScreen({ route, navigation }) {
         </View>
         <View style={styles.row}>
           <Text style={styles.label}>Downpayment (20%):</Text>
-          <Text style={[styles.val, {color: '#E53935'}]}>- Rs. {downpayment}</Text>
+          <Text style={[styles.val, {color: '#E53935'}]}>Rs. {downpayment}</Text>
         </View>
-        <View style={styles.row}>
-          <Text style={styles.label}>Interest Rate:</Text>
-          <Text style={[styles.val, {color: '#2E8B57'}]}>+ 12%</Text>
-        </View>
-        
         <View style={styles.divider} />
-        
         <Text style={styles.sectionLabel}>Select Duration:</Text>
         <View style={styles.monthRow}>
           {[6, 12, 18].map(m => (
-            <TouchableOpacity 
-              key={m} 
-              style={[styles.monthBtn, months === m && styles.activeBtn]}
-              onPress={() => setMonths(m)}
-            >
+            <TouchableOpacity key={m} style={[styles.monthBtn, months === m && styles.activeBtn]} onPress={() => setMonths(m)}>
               <Text style={{color: months === m ? '#fff' : '#333'}}>{m} Months</Text>
             </TouchableOpacity>
           ))}
         </View>
-
         <View style={styles.resultBox}>
           <Text style={styles.resultLabel}>Monthly Installment</Text>
           <Text style={styles.resultPrice}>Rs. {monthlyInstallment.toFixed(0)}</Text>
-          <Text style={styles.totalPayable}>Total Lease Amount: Rs. {totalWithInterest.toFixed(0)}</Text>
         </View>
       </View>
-
-      <TouchableOpacity 
-        style={styles.confirmBtn}
-        onPress={() => navigation.navigate('LeaseConfirmation', { 
-          product, 
-          months, 
-          downpayment, 
-          monthlyInstallment,
-          interestRate: '12%',
-          totalLeaseBalance: totalWithInterest
-        })}
-      >
-        <Text style={styles.confirmText}>Confirm Lease Plan</Text>
+      <TouchableOpacity style={styles.confirmBtn} onPress={handleSendRequest} disabled={loading}>
+        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.confirmText}>Submit Lease Request</Text>}
       </TouchableOpacity>
     </View>
   );
@@ -87,7 +103,6 @@ const styles = StyleSheet.create({
   resultBox: { marginTop: 30, backgroundColor: '#E8F5E9', padding: 20, borderRadius: 10, alignItems: 'center' },
   resultLabel: { color: '#2E8B57', fontWeight: 'bold' },
   resultPrice: { fontSize: 28, fontWeight: 'bold', color: '#1B5E20' },
-  totalPayable: { fontSize: 12, color: '#666', marginTop: 5 },
   confirmBtn: { backgroundColor: '#2E8B57', padding: 18, borderRadius: 12, alignItems: 'center', marginTop: 'auto' },
   confirmText: { color: '#fff', fontWeight: 'bold', fontSize: 18 }
 });
