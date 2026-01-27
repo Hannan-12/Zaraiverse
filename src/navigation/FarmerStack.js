@@ -32,6 +32,10 @@ import LeasePaymentScreen from '../screens/farmer/LeasePaymentScreen';
 import HelpCenterScreen from '../screens/common/HelpCenterScreen';
 import PrivacyPolicyScreen from '../screens/common/PrivacyPolicyScreen';
 
+// Security Screens (SEC-5)
+import DataDeletionRequestScreen from '../screens/common/DataDeletionRequestScreen';
+import TwoFactorSetupScreen from '../screens/common/TwoFactorSetupScreen';
+
 const Stack = createNativeStackNavigator();
 
 export default function FarmerStack() {
@@ -71,6 +75,20 @@ export default function FarmerStack() {
       <Stack.Screen name="AddField" component={AddFieldScreen} options={{ title: 'Add Field' }} />
       <Stack.Screen name="HelpCenter" component={HelpCenterScreen} options={{ title: 'Help Center' }} />
       <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: 'Privacy Policy' }} />
+
+      {/* Data Deletion Request (SEC-5) */}
+      <Stack.Screen
+        name="DataDeletionRequest"
+        component={DataDeletionRequestScreen}
+        options={{ title: 'Delete My Data', headerShown: false }}
+      />
+
+      {/* 2FA Setup */}
+      <Stack.Screen
+        name="TwoFactorSetup"
+        component={TwoFactorSetupScreen}
+        options={{ title: 'Two-Factor Auth', headerShown: false }}
+      />
     </Stack.Navigator>
   );
 }

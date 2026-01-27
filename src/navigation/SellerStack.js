@@ -7,9 +7,13 @@ import SellerOrders from '../screens/seller/SellerOrders';
 import ManageShipment from '../screens/seller/ManageShipment';
 import ProfileScreen from '../screens/seller/ProfileScreen';
 
-// --- ADD THESE IMPORTS ---
+// Common Screens
 import HelpCenterScreen from '../screens/common/HelpCenterScreen';
 import PrivacyPolicyScreen from '../screens/common/PrivacyPolicyScreen';
+
+// Security Screens (SEC-2, SEC-5)
+import TwoFactorSetupScreen from '../screens/common/TwoFactorSetupScreen';
+import DataDeletionRequestScreen from '../screens/common/DataDeletionRequestScreen';
 
 const Stack = createStackNavigator();
 
@@ -23,9 +27,23 @@ export default function SellerStack() {
       <Stack.Screen name="ManageShipment" component={ManageShipment} options={{ title: 'Shipments' }} />
       <Stack.Screen name="Profile" component={ProfileScreen} />
       
-      {/* --- ADD THESE SCREENS --- */}
+      {/* Common Screens */}
       <Stack.Screen name="HelpCenter" component={HelpCenterScreen} options={{ title: 'Help Center' }} />
       <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: 'Privacy Policy' }} />
+
+      {/* 2FA Setup (SEC-2) - Required for sellers */}
+      <Stack.Screen
+        name="TwoFactorSetup"
+        component={TwoFactorSetupScreen}
+        options={{ title: 'Two-Factor Auth', headerShown: false }}
+      />
+
+      {/* Data Deletion Request (SEC-5) */}
+      <Stack.Screen
+        name="DataDeletionRequest"
+        component={DataDeletionRequestScreen}
+        options={{ title: 'Delete My Data', headerShown: false }}
+      />
     </Stack.Navigator>
   );
 }
