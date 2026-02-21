@@ -145,12 +145,15 @@ export const logError = async ({
       await sendCriticalAlert(errorData);
     }
 
-    // Try to save to database
+    // Try to save to database (fails silently on permission errors)
     await saveErrorToDatabase(errorData);
 
     return { success: true };
   } catch (err) {
-    console.log('[ErrorLogging] Failed to log error:', err);
+    // Only log non-permission failures to avoid console spam
+    if (err?.code !== 'permission-denied') {
+      console.log('[ErrorLogging] Failed to log error:', err.message);
+    }
     return { success: false, error: err.message };
   }
 };
@@ -166,8 +169,12 @@ const saveErrorToDatabase = async (errorData) => {
     });
     return docRef.id;
   } catch (error) {
-    console.log('[ErrorLogging] Database save failed:', error);
-    throw error;
+    // Silently skip Firestore permission errors — system_errors collection
+    // may be write-protected by Firestore security rules in development.
+    if (error?.code === 'permission-denied') return null;
+    // For any other error, log quietly without re-throwing (prevents feedback loop)
+    console.log('[ErrorLogging] Database save failed:', error.message);
+    return null;
   }
 };
 
