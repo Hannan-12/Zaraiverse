@@ -43,25 +43,39 @@ export default function OrdersScreen({ navigation }) {
   }, [user]);
 
   const renderOrderItem = ({ item }) => {
+    const isRental = item.orderType === 'Rental';
+    const r = item.rentalDetails || {};
+
     let summary = "";
-    if (item.orderType === 'Lease') {
-      summary = `Lease: ${item.productName || 'Machine'}`;
+    if (isRental) {
+      const durText = r.durationType === 'hours'
+        ? `${r.durationValue}h`
+        : `${r.durationValue || r.durationDays}d`;
+      summary = `${item.productName || 'Machine'} · ${durText}`;
     } else {
       const names = item.items ? item.items.map(i => i.name).join(', ') : 'Purchase Details';
       summary = names.length > 30 ? names.substring(0, 30) + '...' : names;
     }
 
-    // Dynamic color logic based on new status workflow
-    let statusColor = '#FFA726'; // Default (Pending)
-    if (['Awaiting Downpayment', 'Processing'].includes(item.status)) statusColor = '#2E8B57'; 
+    // Status color for Rental workflow: Pending → Confirmed → Active → Returned
+    let statusColor = '#FFA726';
+    if (['Confirmed', 'Processing'].includes(item.status)) statusColor = '#2E8B57';
     if (item.status === 'Active' || item.status === 'Shipped') statusColor = '#42A5F5';
-    if (item.status === 'Delivered') statusColor = '#66BB6A';
+    if (item.status === 'Delivered' || item.status === 'Returned') statusColor = '#66BB6A';
     if (item.status === 'Rejected') statusColor = '#EF5350';
+
+    const rentalRateText = isRental
+      ? r.durationType === 'hours'
+        ? `Rs. ${r.hourlyRate}/hr`
+        : `Rs. ${r.dailyRate}/day`
+      : null;
 
     return (
       <View style={styles.orderCard}>
         <View style={styles.cardHeader}>
-          <Text style={styles.orderId}>Order #{item.id.slice(-6).toUpperCase()}</Text>
+          <Text style={styles.orderId}>
+            {isRental ? 'Rental' : 'Order'} #{item.id.slice(-6).toUpperCase()}
+          </Text>
           <View style={[styles.statusBadge, { backgroundColor: statusColor + '20' }]}>
             <Text style={[styles.statusText, { color: statusColor }]}>{item.status}</Text>
           </View>
@@ -72,33 +86,29 @@ export default function OrdersScreen({ navigation }) {
             <Ionicons name="calendar-outline" size={16} color="#666" />
             <Text style={styles.dateText}>{format(item.createdAt, 'MMM d, yyyy')}</Text>
           </View>
-          
+
           <View style={styles.row}>
-            <Ionicons name={item.orderType === 'Lease' ? "document-text-outline" : "cube-outline"} size={16} color="#666" />
+            <Ionicons name={isRental ? 'time-outline' : 'cube-outline'} size={16} color="#666" />
             <Text style={styles.itemsText}>{summary}</Text>
           </View>
 
-          {item.orderType === 'Lease' && (
-            <Text style={styles.leasePrice}>Installment: Rs. {item.leaseDetails?.monthlyInstallment}/mo</Text>
+          {isRental && rentalRateText && (
+            <Text style={styles.rentalRate}>{rentalRateText}</Text>
           )}
 
           <View style={styles.divider} />
 
           <View style={styles.footerRow}>
-            <Text style={styles.totalLabel}>{item.orderType === 'Lease' ? 'Total Lease' : 'Amount'}</Text>
+            <Text style={styles.totalLabel}>{isRental ? 'Rental Cost' : 'Amount'}</Text>
             <Text style={styles.totalAmount}>Rs. {item.totalAmount || item.price}</Text>
           </View>
 
-          {/* ✅ FIXED CONDITION: Show button for all active lease states */}
-          {item.orderType === 'Lease' && 
-           ['Pending', 'Awaiting Downpayment', 'Active', 'Delivered'].includes(item.status) && (
-            <TouchableOpacity 
+          {isRental && (
+            <TouchableOpacity
               style={styles.payBtn}
               onPress={() => navigation.navigate('LeasePayment', { order: item })}
             >
-              <Text style={styles.payBtnText}>
-                {item.status === 'Pending' ? 'Check Status' : 'View Installments'}
-              </Text>
+              <Text style={styles.payBtnText}>View Rental Status</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -134,7 +144,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   dateText: { marginLeft: 8, color: '#666', fontSize: 13 },
   itemsText: { marginLeft: 8, color: '#333', fontSize: 14, fontWeight: '600' },
-  leasePrice: { color: '#2E8B57', fontSize: 12, fontWeight: 'bold', marginLeft: 24, marginTop: -5 },
+  rentalRate: { color: '#2E8B57', fontSize: 12, fontWeight: 'bold', marginLeft: 24, marginTop: -5 },
   divider: { height: 1, backgroundColor: '#eee', marginVertical: 10 },
   footerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   totalLabel: { fontSize: 13, color: '#777' },

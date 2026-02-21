@@ -1,119 +1,126 @@
 // src/screens/farmer/LeaseConfirmationScreen.js
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
-import { db } from '../../services/firebase';
-import { doc, updateDoc, onSnapshot } from 'firebase/firestore';
-import { format, addMonths } from 'date-fns';
+// Rental Booking Confirmation — shown immediately after a rental request is submitted
+import React from 'react';
+import {
+  View, Text, StyleSheet, ScrollView, TouchableOpacity,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 
-export default function LeasePaymentScreen({ route }) {
-  // Safe destructuring with fallback to prevent crash
-  const initialOrder = route?.params?.order;
-  const [order, setOrder] = useState(initialOrder);
-  const [loading, setLoading] = useState(false);
+const PAYMENT_LABELS = {
+  easypaisa: 'Easypaisa',
+  cash: 'Cash on Pickup',
+};
 
-  // Helper function to safely handle the date
-  const getOrderDate = (dateField) => {
-    if (!dateField) return new Date();
-    if (dateField instanceof Date) return dateField;
-    if (typeof dateField.toDate === 'function') return dateField.toDate();
-    return new Date(dateField);
-  };
+export default function LeaseConfirmationScreen({ route, navigation }) {
+  const { order } = route.params;
+  const rental = order?.rentalDetails || {};
 
-  useEffect(() => {
-    // Only set up listener if we have a valid order ID from the database
-    if (!order?.id) return;
+  const isHourly = rental.durationType === 'hours';
+  const durationText = isHourly
+    ? `${rental.durationValue} Hour${rental.durationValue !== 1 ? 's' : ''}`
+    : `${rental.durationValue || rental.durationDays} Day${(rental.durationValue || rental.durationDays) !== 1 ? 's' : ''}`;
 
-    const unsub = onSnapshot(doc(db, 'orders', order.id), (docSnap) => {
-      if (docSnap.exists()) {
-        setOrder({ id: docSnap.id, ...docSnap.data() });
-      }
-    });
-    return () => unsub();
-  }, [order?.id]);
+  const rateText = isHourly
+    ? `Rs. ${rental.hourlyRate} / hour`
+    : `Rs. ${rental.dailyRate} / day`;
 
-  // CRASH PROTECTION: If order data is missing, show a loading state
-  if (!order || !order.leaseDetails) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#2E8B57" />
-        <Text style={{marginTop: 10}}>Loading lease details...</Text>
-      </View>
-    );
-  }
-
-  const paidCount = order.paidInstallments || 0;
-  const duration = parseInt(order.leaseDetails.duration) || 6;
-  const baseDate = getOrderDate(order.createdAt);
-  const dueDates = Array.from({ length: duration }, (_, i) => addMonths(baseDate, i + 1));
-
-  const handleInstallmentPayment = async (isEarly = false) => {
-    if (!order.id) {
-        Alert.alert("Order Not Saved", "This lease hasn't been saved to the database yet.");
-        return;
-    }
-
-    if (paidCount >= duration) {
-      Alert.alert("Complete!", "All installments are paid.");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const newPaidCount = paidCount + 1;
-      const updateData = { paidInstallments: newPaidCount };
-      if (newPaidCount === duration) updateData.status = 'Delivered';
-
-      await updateDoc(doc(db, 'orders', order.id), updateData);
-      Alert.alert("Success ✅", isEarly ? "Early payment received." : "Installment paid.");
-    } catch (e) {
-      Alert.alert("Error", "Payment failed. Check your connection.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const returnDate = rental.returnByDate
+    ? new Date(rental.returnByDate).toDateString()
+    : 'N/A';
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={{ padding: 20 }}>
-        <Text style={styles.header}>{order.productName}</Text>
-        
-        <View style={styles.statCard}>
-          <View style={styles.statItem}>
-            <Text style={styles.statLabel}>Paid</Text>
-            <Text style={styles.statVal}>{paidCount}/{duration}</Text>
+      <LinearGradient colors={['#2E8B57', '#1B5E20']} style={styles.heroSection}>
+        <View style={styles.iconCircle}>
+          <Ionicons name="checkmark-circle" size={64} color="#2E8B57" />
+        </View>
+        <Text style={styles.heroTitle}>Request Sent!</Text>
+        <Text style={styles.heroSub}>
+          Your rental request has been submitted. The seller will confirm shortly.
+        </Text>
+      </LinearGradient>
+
+      <ScrollView contentContainerStyle={styles.content}>
+        <Text style={styles.productName}>{order?.productName}</Text>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Rental Summary</Text>
+
+          <View style={styles.row}>
+            <View style={styles.rowLeft}>
+              <Ionicons name="time-outline" size={18} color="#2E8B57" />
+              <Text style={styles.rowLabel}>Duration</Text>
+            </View>
+            <Text style={styles.rowValue}>{durationText}</Text>
           </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statLabel}>Monthly</Text>
-            <Text style={styles.statVal}>Rs. {order.leaseDetails.monthlyInstallment}</Text>
+
+          <View style={styles.divider} />
+
+          <View style={styles.row}>
+            <View style={styles.rowLeft}>
+              <Ionicons name="pricetag-outline" size={18} color="#2E8B57" />
+              <Text style={styles.rowLabel}>Rate</Text>
+            </View>
+            <Text style={styles.rowValue}>{rateText}</Text>
+          </View>
+
+          <View style={styles.divider} />
+
+          <View style={styles.row}>
+            <View style={styles.rowLeft}>
+              <Ionicons name="cash-outline" size={18} color="#2E8B57" />
+              <Text style={styles.rowLabel}>Total Cost</Text>
+            </View>
+            <Text style={[styles.rowValue, styles.totalCost]}>
+              Rs. {rental.totalCost || order?.totalAmount}
+            </Text>
+          </View>
+
+          <View style={styles.divider} />
+
+          <View style={styles.row}>
+            <View style={styles.rowLeft}>
+              <Ionicons name="calendar-outline" size={18} color="#E53935" />
+              <Text style={styles.rowLabel}>Return By</Text>
+            </View>
+            <Text style={[styles.rowValue, { color: '#E53935' }]}>{returnDate}</Text>
+          </View>
+
+          <View style={styles.divider} />
+
+          <View style={styles.row}>
+            <View style={styles.rowLeft}>
+              <Ionicons name="wallet-outline" size={18} color="#2E8B57" />
+              <Text style={styles.rowLabel}>Payment</Text>
+            </View>
+            <Text style={styles.rowValue}>
+              {PAYMENT_LABELS[rental.paymentMethod] || rental.paymentMethod || '—'}
+            </Text>
           </View>
         </View>
 
-        {paidCount < duration && (
-          <TouchableOpacity 
-            style={styles.earlyBtn} 
-            onPress={() => handleInstallmentPayment(true)} 
-            disabled={loading}
-          >
-            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.earlyBtnText}>Pay Next Installment Early</Text>}
-          </TouchableOpacity>
-        )}
+        <View style={styles.noteBox}>
+          <Ionicons name="information-circle-outline" size={18} color="#1565C0" />
+          <Text style={styles.noteText}>
+            You will be notified once the seller confirms your request. Check your Orders tab for updates.
+          </Text>
+        </View>
 
-        <Text style={styles.sectionTitle}>Payment Schedule</Text>
-        {dueDates.map((date, index) => (
-          <View key={index} style={[styles.dateRow, index < paidCount && styles.paidRow]}>
-            <View style={[styles.circle, index < paidCount && styles.paidCircle]}>
-               <Text style={[styles.indexText, index < paidCount && {color: '#fff'}]}>{index + 1}</Text>
-            </View>
-            <View style={styles.dateInfo}>
-              <Text style={styles.dueDate}>{format(date, 'MMM dd, yyyy')}</Text>
-              <Text style={styles.dueAmount}>Installment #{index + 1}</Text>
-            </View>
-            <Text style={index < paidCount ? styles.statusPaid : styles.statusPending}>
-              {index < paidCount ? 'PAID' : 'PENDING'}
-            </Text>
-          </View>
-        ))}
+        <TouchableOpacity
+          style={styles.statusBtn}
+          onPress={() => navigation.navigate('LeasePayment', { order })}
+        >
+          <Ionicons name="receipt-outline" size={20} color="#fff" style={{ marginRight: 8 }} />
+          <Text style={styles.statusBtnText}>View Order Status</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.ordersBtn}
+          onPress={() => navigation.navigate('Orders')}
+        >
+          <Text style={styles.ordersBtnText}>Go to My Orders</Text>
+        </TouchableOpacity>
       </ScrollView>
     </View>
   );
@@ -121,24 +128,39 @@ export default function LeasePaymentScreen({ route }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8FAF9' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: { fontSize: 22, fontWeight: 'bold', marginBottom: 15, color: '#333' },
-  statCard: { backgroundColor: '#2E8B57', flexDirection: 'row', padding: 20, borderRadius: 15, marginBottom: 20, elevation: 5 },
-  statItem: { flex: 1, alignItems: 'center' },
-  statLabel: { color: '#E8F5E9', fontSize: 12 },
-  statVal: { color: '#fff', fontSize: 22, fontWeight: 'bold', marginTop: 5 },
-  statDivider: { width: 1, backgroundColor: 'rgba(255,255,255,0.3)' },
-  earlyBtn: { backgroundColor: '#FFA726', padding: 16, borderRadius: 12, alignItems: 'center', marginBottom: 25, elevation: 3 },
-  earlyBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15, color: '#444' },
-  dateRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', padding: 15, borderRadius: 12, marginBottom: 10, elevation: 2 },
-  paidRow: { opacity: 0.7, backgroundColor: '#F1F8E9' },
-  circle: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#eee', justifyContent: 'center', alignItems: 'center' },
-  paidCircle: { backgroundColor: '#2E8B57' },
-  indexText: { fontWeight: 'bold', fontSize: 13 },
-  dateInfo: { flex: 1, marginLeft: 15 },
-  dueDate: { fontSize: 15, fontWeight: 'bold', color: '#333' },
-  dueAmount: { fontSize: 13, color: '#666', marginTop: 2 },
-  statusPaid: { color: '#2E8B57', fontWeight: 'bold', fontSize: 12 },
-  statusPending: { color: '#FFA726', fontWeight: 'bold', fontSize: 12 }
+  heroSection: {
+    paddingTop: 60, paddingBottom: 40, paddingHorizontal: 24,
+    alignItems: 'center', borderBottomLeftRadius: 32, borderBottomRightRadius: 32,
+  },
+  iconCircle: {
+    width: 100, height: 100, borderRadius: 50, backgroundColor: '#fff',
+    justifyContent: 'center', alignItems: 'center', marginBottom: 16, elevation: 4,
+  },
+  heroTitle: { fontSize: 26, fontWeight: 'bold', color: '#fff', marginBottom: 8 },
+  heroSub: { fontSize: 14, color: 'rgba(255,255,255,0.85)', textAlign: 'center', lineHeight: 20 },
+  content: { padding: 20 },
+  productName: { fontSize: 20, fontWeight: 'bold', color: '#333', marginBottom: 16, marginTop: 4 },
+  card: { backgroundColor: '#fff', borderRadius: 16, padding: 20, elevation: 3, marginBottom: 16 },
+  cardTitle: { fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 16 },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6 },
+  rowLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  rowLabel: { fontSize: 14, color: '#666', marginLeft: 8 },
+  rowValue: { fontSize: 14, fontWeight: '600', color: '#333' },
+  totalCost: { fontSize: 18, fontWeight: 'bold', color: '#1B5E20' },
+  divider: { height: 1, backgroundColor: '#f0f0f0', marginVertical: 4 },
+  noteBox: {
+    flexDirection: 'row', backgroundColor: '#E3F2FD', padding: 14, borderRadius: 12,
+    marginBottom: 20, gap: 10,
+  },
+  noteText: { flex: 1, fontSize: 13, color: '#1565C0', lineHeight: 20 },
+  statusBtn: {
+    backgroundColor: '#2E8B57', padding: 16, borderRadius: 12, alignItems: 'center',
+    flexDirection: 'row', justifyContent: 'center', marginBottom: 12, elevation: 2,
+  },
+  statusBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+  ordersBtn: {
+    borderWidth: 2, borderColor: '#2E8B57', padding: 14, borderRadius: 12,
+    alignItems: 'center', marginBottom: 20,
+  },
+  ordersBtnText: { color: '#2E8B57', fontWeight: 'bold', fontSize: 15 },
 });

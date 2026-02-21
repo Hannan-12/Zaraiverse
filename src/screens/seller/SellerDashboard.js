@@ -50,26 +50,14 @@ export default function SellerDashboard({ navigation }) {
       snapshot.docs.forEach(docSnap => {
         const data = docSnap.data();
 
-        // Active Orders Logic: Includes Pending, Awaiting Downpayment, and Active leases
-        if (['Pending', 'Processing', 'Awaiting Downpayment', 'Active'].includes(data.status)) {
+        // Active Orders Logic: Pending and in-progress rentals/orders
+        if (['Pending', 'Processing', 'Confirmed', 'Active'].includes(data.status)) {
           active++;
         }
 
-        // Revenue Calculation Logic
-        if (data.orderType !== 'Lease') {
-          // Regular Purchases: Count if delivered
-          if (data.status === 'Delivered') {
-            totalRev += parseFloat(data.totalAmount) || 0;
-          }
-        } else {
-          // Lease Orders: Revenue = Downpayment + all paid installments
-          if (['Active', 'Delivered'].includes(data.status)) {
-            const dp = parseFloat(data.leaseDetails?.downpayment) || 0;
-            const monthly = parseFloat(data.leaseDetails?.monthlyInstallment) || 0;
-            const installmentsPaid = parseInt(data.paidInstallments) || 0;
-            
-            totalRev += dp + (monthly * installmentsPaid);
-          }
+        // Revenue Calculation Logic: Count full amount on completion
+        if (['Delivered', 'Returned'].includes(data.status)) {
+          totalRev += parseFloat(data.totalAmount) || 0;
         }
       });
 

@@ -10,6 +10,7 @@ export default function LeaseTermsScreen({ route, navigation }) {
   const [agreed, setAgreed] = useState(false);
 
   const dailyRate = product.rentalRatePerDay || product.price;
+  const hourlyRate = product.rentalRatePerHour || Math.ceil(dailyRate / 8);
 
   return (
     <View style={styles.container}>
@@ -20,15 +21,22 @@ export default function LeaseTermsScreen({ route, navigation }) {
       </LinearGradient>
 
       <ScrollView style={styles.content}>
-        <View style={styles.rateCard}>
-          <Text style={styles.rateLabel}>Rental Rate</Text>
-          <Text style={styles.rateValue}>Rs. {dailyRate} / day</Text>
+        <View style={styles.rateRow}>
+          <View style={[styles.rateCard, { flex: 1, marginRight: 8 }]}>
+            <Text style={styles.rateLabel}>Hourly Rate</Text>
+            <Text style={styles.rateValue}>Rs. {hourlyRate} / hr</Text>
+          </View>
+          <View style={[styles.rateCard, { flex: 1, marginLeft: 8 }]}>
+            <Text style={styles.rateLabel}>Daily Rate</Text>
+            <Text style={styles.rateValue}>Rs. {dailyRate} / day</Text>
+          </View>
         </View>
 
         <Text style={styles.sectionTitle}>1. Usage-Based Payment</Text>
         <Text style={styles.text}>
-          You pay only for the time you use the equipment. The rental fee is calculated based on the
-          number of days or hours selected. Full payment is required upfront before receiving the equipment.
+          You pay only for the time you use the equipment. Choose hourly (2, 4, or 8 hours) or
+          daily (1, 3, or 7 days) rental — fees are calculated accordingly. Full payment is
+          required upfront before receiving the equipment.
         </Text>
 
         <Text style={styles.sectionTitle}>2. Ownership</Text>
@@ -85,7 +93,8 @@ const styles = StyleSheet.create({
   header: { padding: 40, paddingTop: 60, alignItems: 'center', borderBottomLeftRadius: 30, borderBottomRightRadius: 30 },
   headerTitle: { color: '#fff', fontSize: 20, fontWeight: 'bold', marginTop: 10 },
   headerSub: { color: 'rgba(255,255,255,0.85)', fontSize: 13, marginTop: 4 },
-  rateCard: { backgroundColor: '#E8F5E9', borderRadius: 12, padding: 16, alignItems: 'center', marginBottom: 10, marginTop: 16 },
+  rateRow: { flexDirection: 'row', marginBottom: 10, marginTop: 16 },
+  rateCard: { backgroundColor: '#E8F5E9', borderRadius: 12, padding: 16, alignItems: 'center' },
   rateLabel: { fontSize: 13, color: '#555' },
   rateValue: { fontSize: 22, fontWeight: 'bold', color: '#2E8B57', marginTop: 4 },
   content: { padding: 20 },
