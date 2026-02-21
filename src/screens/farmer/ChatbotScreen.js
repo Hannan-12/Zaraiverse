@@ -46,7 +46,7 @@ export default function ChatbotScreen() {
   const [messages, setMessages] = useState([
     {
       id: "1",
-      text: "Hello Hannan! I am your ZaraiVerse AI assistant. Ask me anything about your farm.",
+      text: "Assalam-o-Alaikum! I am your ZaraiVerse AI assistant. Ask me anything about your crops, soil, irrigation, pests, or farming techniques — I'm here to help!",
       sender: "bot",
     },
   ]);
@@ -191,11 +191,38 @@ export default function ChatbotScreen() {
     resolveModel();
   }, []);
 
+  // ---------- SYSTEM INSTRUCTION ----------
+  // Focused agricultural system prompt to avoid repetitive/off-topic responses
+  const SYSTEM_INSTRUCTION = {
+    parts: [
+      {
+        text: `You are ZaraiVerse AI — a smart, helpful agricultural assistant for Pakistani farmers.
+
+Your role:
+- Answer questions about crops, soil, irrigation, fertilizers, pesticides, seeds, and farming techniques.
+- Provide advice on equipment rental and usage for farming.
+- Help with weather-related farming decisions.
+- Offer guidance on pest control and disease management in crops.
+- Suggest best practices for common Pakistani crops: wheat, rice, sugarcane, cotton, maize, and vegetables.
+
+Rules you MUST follow:
+1. Give SPECIFIC, ACTIONABLE answers — never give vague or generic advice.
+2. NEVER repeat the same answer you gave before in this conversation. If asked a similar question, give a different angle or more detail.
+3. Keep answers concise and easy to understand. Use bullet points for lists.
+4. If a question is completely unrelated to farming or agriculture, politely redirect: "I'm specialized in agricultural topics. Could you ask me something about farming?"
+5. When giving recommendations, always mention quantities, timings, or specific product names when relevant.
+6. Use simple Urdu/English terms where helpful (e.g., write "کھاد (fertilizer)").
+7. Do not start consecutive responses with the same opening phrase.`,
+      },
+    ],
+  };
+
   // ---------- GEMINI CALL ----------
   const callGeminiGenerateContent = async (contents, { maxOutputTokens = 1400 } = {}) => {
     const payload = {
+      system_instruction: SYSTEM_INSTRUCTION,
       contents,
-      generationConfig: { temperature: 0.4, maxOutputTokens },
+      generationConfig: { temperature: 0.7, maxOutputTokens, topP: 0.9 },
     };
 
     const MAX_RETRIES = 3;
@@ -301,7 +328,7 @@ export default function ChatbotScreen() {
 
     setMessages([{
       id: "1",
-      text: "Hello Hannan! I am your ZaraiVerse AI assistant. Ask me anything about your farm.",
+      text: "Assalam-o-Alaikum! I am your ZaraiVerse AI assistant. Ask me anything about your crops, soil, irrigation, pests, or farming techniques — I'm here to help!",
       sender: "bot",
     }]);
     setInputText("");
@@ -399,7 +426,7 @@ export default function ChatbotScreen() {
                 <TouchableOpacity
                   onPress={() => Alert.alert("Clear", "Clear current chat?", [
                     { text: "Cancel", style: "cancel" },
-                    { text: "Clear", style: "destructive", onPress: () => setMessages([{ id: "1", text: "Hello Hannan! I am your ZaraiVerse AI assistant.", sender: "bot" }]) }
+                    { text: "Clear", style: "destructive", onPress: () => setMessages([{ id: "1", text: "Assalam-o-Alaikum! I am your ZaraiVerse AI assistant. Ask me anything about your crops, soil, irrigation, pests, or farming techniques — I'm here to help!", sender: "bot" }]) }
                   ])}
                   style={styles.smallBtn}
                 >
