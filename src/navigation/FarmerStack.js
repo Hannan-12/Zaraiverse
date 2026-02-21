@@ -51,11 +51,11 @@ export default function FarmerStack() {
       <Stack.Screen name="Marketplace" component={MarketplaceScreen} options={{ title: 'Marketplace' }} />
       <Stack.Screen name="ProductDetails" component={ProductDetailsScreen} options={{ title: 'Product Details' }} />
       
-      {/* Leasing Flow */}
-      <Stack.Screen name="LeaseTerms" component={LeaseTermsScreen} options={{ title: 'Lease Agreement' }} />
-      <Stack.Screen name="LeaseCalculator" component={LeaseCalculatorScreen} options={{ title: 'Installment Calculator' }} />
-      <Stack.Screen name="LeaseConfirmation" component={LeaseConfirmationScreen} options={{ title: 'Confirm Lease Plan' }} />
-      <Stack.Screen name="LeasePayment" component={LeasePaymentScreen} options={{ title: 'Installment Tracking' }} />
+      {/* Rental Flow (usage-based lending) */}
+      <Stack.Screen name="LeaseTerms" component={LeaseTermsScreen} options={{ title: 'Rental Agreement' }} />
+      <Stack.Screen name="LeaseCalculator" component={LeaseCalculatorScreen} options={{ title: 'Rental Calculator' }} />
+      <Stack.Screen name="LeaseConfirmation" component={LeaseConfirmationScreen} options={{ title: 'Rental Confirmation' }} />
+      <Stack.Screen name="LeasePayment" component={LeasePaymentScreen} options={{ title: 'Rental Status' }} />
       
       <Stack.Screen name="Weather" component={WeatherForecastScreen} options={{ title: 'Weather Forecast', headerShown: false }} />
       <Stack.Screen name="WeatherDetail" component={WeatherDetailScreen} options={{ title: 'Hourly Details', headerTransparent: true, headerTitle: '' }} />
