@@ -35,14 +35,18 @@ import * as Notifications from 'expo-notifications';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { format } from 'date-fns';
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
+// Local notification handler — local/scheduled notifications still work in Expo Go.
+// Only remote push notifications were removed from Expo Go in SDK 53.
+try {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    }),
+  });
+} catch (_) { /* silently skip if restricted in Expo Go */ }
 
 export default function TaskRemindersScreen() {
   const [tasks, setTasks] = useState([]);
