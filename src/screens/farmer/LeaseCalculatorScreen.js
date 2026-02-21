@@ -1,5 +1,5 @@
 // src/screens/farmer/LeaseCalculatorScreen.js
-// Rental (usage-based) Calculator — replaces the old Lease Installment Calculator
+// Rental (usage-based) Calculator — supports hourly and daily rental periods
 import React, { useState, useContext } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Alert,
@@ -10,7 +10,6 @@ import { db } from '../../services/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { AuthContext } from '../../contexts/AuthContext';
 
-// Payment method constants (inline to avoid circular dependency)
 const PAYMENT_METHODS = [
   {
     id: 'easypaisa',
@@ -28,25 +27,49 @@ const PAYMENT_METHODS = [
   },
 ];
 
-const DURATION_OPTIONS = [
-  { label: '1 Day', days: 1 },
-  { label: '3 Days', days: 3 },
-  { label: '7 Days', days: 7 },
+const DAY_OPTIONS = [
+  { label: '1 Day', value: 1 },
+  { label: '3 Days', value: 3 },
+  { label: '7 Days', value: 7 },
+];
+
+const HOUR_OPTIONS = [
+  { label: '2 Hours', value: 2 },
+  { label: '4 Hours', value: 4 },
+  { label: '8 Hours', value: 8 },
 ];
 
 export default function LeaseCalculatorScreen({ route, navigation }) {
   const { product } = route.params;
   const { user } = useContext(AuthContext);
-  const [loading, setLoading] = useState(false);
-  const [selectedDays, setSelectedDays] = useState(1);
+
+  const [rentalMode, setRentalMode] = useState('days'); // 'days' | 'hours'
+  const [selectedValue, setSelectedValue] = useState(1);
   const [selectedPayment, setSelectedPayment] = useState(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  // Use rentalRatePerDay if available, otherwise fall back to price
+  // Derive rates: dailyRate from product, hourlyRate derived from daily ÷ 8
   const dailyRate = product.rentalRatePerDay || product.price;
-  const totalRentalCost = dailyRate * selectedDays;
+  const hourlyRate = product.rentalRatePerHour || Math.ceil(dailyRate / 8);
+
+  const activeRate = rentalMode === 'hours' ? hourlyRate : dailyRate;
+  const totalCost = activeRate * selectedValue;
+
+  // Return date calculation
+  const msOffset = rentalMode === 'hours'
+    ? selectedValue * 3600000
+    : selectedValue * 86400000;
+  const returnDate = new Date(Date.now() + msOffset);
 
   const selectedMethod = PAYMENT_METHODS.find((m) => m.id === selectedPayment);
+  const currentOptions = rentalMode === 'days' ? DAY_OPTIONS : HOUR_OPTIONS;
+
+  // Reset selected value when mode changes
+  const handleModeChange = (mode) => {
+    setRentalMode(mode);
+    setSelectedValue(mode === 'days' ? 1 : 2);
+  };
 
   const handleSendRequest = async () => {
     if (!user) {
@@ -60,7 +83,7 @@ export default function LeaseCalculatorScreen({ route, navigation }) {
 
     setLoading(true);
     try {
-      await addDoc(collection(db, 'orders'), {
+      const orderData = {
         userId: user.uid,
         userName: user.displayName || 'Farmer',
         sellerId: product.sellerId,
@@ -68,24 +91,28 @@ export default function LeaseCalculatorScreen({ route, navigation }) {
         productId: product.id,
         orderType: 'Rental',
         status: 'Pending',
-        totalAmount: totalRentalCost,
+        totalAmount: totalCost,
         paymentMethod: selectedPayment,
         paidAmount: 0,
         createdAt: serverTimestamp(),
         rentalDetails: {
-          durationDays: selectedDays,
+          durationType: rentalMode,
+          durationValue: selectedValue,
+          durationDays: rentalMode === 'days' ? selectedValue : selectedValue / 8,
           dailyRate: dailyRate,
-          totalCost: totalRentalCost,
+          hourlyRate: hourlyRate,
+          totalCost: totalCost,
           paymentMethod: selectedPayment,
-          returnByDate: new Date(Date.now() + selectedDays * 86400000).toISOString(),
+          returnByDate: returnDate.toISOString(),
         },
-      });
+      };
 
-      Alert.alert(
-        'Request Sent!',
-        `Your rental request has been submitted.\n\nPayment: ${selectedMethod?.name}\nTotal: Rs. ${totalRentalCost}\n\nCheck your "Orders" tab for updates.`,
-        [{ text: 'View Orders', onPress: () => navigation.navigate('Orders') }]
-      );
+      const docRef = await addDoc(collection(db, 'orders'), orderData);
+
+      // Navigate to confirmation screen with the new order
+      navigation.replace('LeaseConfirmation', {
+        order: { id: docRef.id, ...orderData },
+      });
     } catch (error) {
       Alert.alert('Error', 'Could not send request. Please check your connection.');
     } finally {
@@ -97,24 +124,62 @@ export default function LeaseCalculatorScreen({ route, navigation }) {
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
       <Text style={styles.header}>Rental Plan: {product.name}</Text>
 
+      {/* Hours / Days Toggle */}
+      <View style={styles.modeToggle}>
+        <TouchableOpacity
+          style={[styles.modeBtn, rentalMode === 'hours' && styles.modeBtnActive]}
+          onPress={() => handleModeChange('hours')}
+        >
+          <Ionicons
+            name="hourglass-outline"
+            size={16}
+            color={rentalMode === 'hours' ? '#fff' : '#555'}
+            style={{ marginRight: 6 }}
+          />
+          <Text style={[styles.modeBtnText, rentalMode === 'hours' && styles.modeBtnTextActive]}>
+            Hourly
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.modeBtn, rentalMode === 'days' && styles.modeBtnActive]}
+          onPress={() => handleModeChange('days')}
+        >
+          <Ionicons
+            name="calendar-outline"
+            size={16}
+            color={rentalMode === 'days' ? '#fff' : '#555'}
+            style={{ marginRight: 6 }}
+          />
+          <Text style={[styles.modeBtnText, rentalMode === 'days' && styles.modeBtnTextActive]}>
+            Daily
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Pricing Card */}
       <View style={styles.card}>
         <View style={styles.row}>
-          <Text style={styles.label}>Daily Rental Rate:</Text>
-          <Text style={styles.val}>Rs. {dailyRate} / day</Text>
+          <Text style={styles.label}>
+            {rentalMode === 'hours' ? 'Hourly Rate:' : 'Daily Rate:'}
+          </Text>
+          <Text style={styles.val}>
+            Rs. {activeRate} / {rentalMode === 'hours' ? 'hour' : 'day'}
+          </Text>
         </View>
         <View style={styles.divider} />
 
         {/* Duration Selection */}
-        <Text style={styles.sectionLabel}>Select Duration:</Text>
+        <Text style={styles.sectionLabel}>
+          Select Duration ({rentalMode === 'hours' ? 'Hours' : 'Days'}):
+        </Text>
         <View style={styles.durationRow}>
-          {DURATION_OPTIONS.map(({ label, days }) => (
+          {currentOptions.map(({ label, value }) => (
             <TouchableOpacity
-              key={days}
-              style={[styles.durationBtn, selectedDays === days && styles.activeBtn]}
-              onPress={() => setSelectedDays(days)}
+              key={value}
+              style={[styles.durationBtn, selectedValue === value && styles.activeBtn]}
+              onPress={() => setSelectedValue(value)}
             >
-              <Text style={{ color: selectedDays === days ? '#fff' : '#333', fontWeight: '600' }}>
+              <Text style={{ color: selectedValue === value ? '#fff' : '#333', fontWeight: '600' }}>
                 {label}
               </Text>
             </TouchableOpacity>
@@ -124,9 +189,9 @@ export default function LeaseCalculatorScreen({ route, navigation }) {
         {/* Cost Summary */}
         <View style={styles.resultBox}>
           <Text style={styles.resultLabel}>Total Rental Cost</Text>
-          <Text style={styles.resultPrice}>Rs. {totalRentalCost}</Text>
+          <Text style={styles.resultPrice}>Rs. {totalCost}</Text>
           <Text style={styles.resultSub}>
-            Rs. {dailyRate} × {selectedDays} day{selectedDays > 1 ? 's' : ''}
+            Rs. {activeRate} × {selectedValue} {rentalMode === 'hours' ? 'hour' : 'day'}{selectedValue > 1 ? 's' : ''}
           </Text>
         </View>
       </View>
@@ -137,7 +202,8 @@ export default function LeaseCalculatorScreen({ route, navigation }) {
         <Text style={styles.infoText}>
           Return By:{' '}
           <Text style={styles.infoBold}>
-            {new Date(Date.now() + selectedDays * 86400000).toDateString()}
+            {returnDate.toDateString()}
+            {rentalMode === 'hours' && ` at ${returnDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
           </Text>
         </Text>
       </View>
@@ -229,6 +295,17 @@ export default function LeaseCalculatorScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8FAF9', padding: 20 },
   header: { fontSize: 20, fontWeight: 'bold', marginBottom: 20, color: '#2E8B57' },
+  modeToggle: {
+    flexDirection: 'row', backgroundColor: '#e8e8e8', borderRadius: 12,
+    padding: 4, marginBottom: 20,
+  },
+  modeBtn: {
+    flex: 1, flexDirection: 'row', paddingVertical: 10, borderRadius: 10,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  modeBtnActive: { backgroundColor: '#2E8B57', elevation: 2 },
+  modeBtnText: { fontSize: 14, fontWeight: '600', color: '#555' },
+  modeBtnTextActive: { color: '#fff' },
   card: { backgroundColor: '#fff', padding: 20, borderRadius: 15, elevation: 3 },
   row: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
   label: { fontSize: 14, color: '#666' },
@@ -242,8 +319,11 @@ const styles = StyleSheet.create({
   resultLabel: { color: '#2E8B57', fontWeight: 'bold', fontSize: 14 },
   resultPrice: { fontSize: 28, fontWeight: 'bold', color: '#1B5E20', marginVertical: 4 },
   resultSub: { fontSize: 12, color: '#555' },
-  infoCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#E8F5E9', padding: 14, borderRadius: 12, marginTop: 16, gap: 10 },
-  infoText: { color: '#444', fontSize: 13 },
+  infoCard: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#E8F5E9',
+    padding: 14, borderRadius: 12, marginTop: 16, gap: 10,
+  },
+  infoText: { color: '#444', fontSize: 13, flex: 1 },
   infoBold: { fontWeight: 'bold', color: '#1B5E20' },
   sectionHeader: { fontSize: 15, fontWeight: '600', color: '#333', marginTop: 20, marginBottom: 10 },
   methodSelector: {

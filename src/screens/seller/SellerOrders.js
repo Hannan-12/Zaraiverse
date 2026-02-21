@@ -48,7 +48,7 @@ export default function SellerOrders() {
   const handleStatusUpdate = async (order, action) => {
     let newStatus;
     if (action === 'accept') {
-      newStatus = order.orderType === 'Rental' ? 'Confirmed' : 'Awaiting Downpayment';
+      newStatus = 'Confirmed';
     } else {
       newStatus = 'Rejected';
     }
@@ -96,15 +96,29 @@ export default function SellerOrders() {
 
   const renderRentalDetails = (item) => {
     const r = item.rentalDetails || {};
+    const isHourly = r.durationType === 'hours';
+    const durationText = isHourly
+      ? `${r.durationValue} hour${r.durationValue !== 1 ? 's' : ''}`
+      : `${r.durationValue || r.durationDays || '—'} day${(r.durationValue || r.durationDays) !== 1 ? 's' : ''}`;
+    const rateText = isHourly
+      ? `Rs. ${r.hourlyRate || '—'} / hour`
+      : `Rs. ${r.dailyRate || item.totalAmount} / day`;
+    const returnDateObj = r.returnByDate ? new Date(r.returnByDate) : null;
+    const returnText = returnDateObj
+      ? isHourly
+        ? `${returnDateObj.toDateString()} at ${returnDateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+        : returnDateObj.toDateString()
+      : null;
+
     return (
       <View style={styles.rentalBox}>
         <Text style={styles.productName}>{item.productName}</Text>
         <View style={styles.rentalRow}>
           <Text style={styles.rentalDetail}>
-            <Ionicons name="calendar-outline" size={13} color="#555" /> Duration: {r.durationDays || '—'} day{r.durationDays !== 1 ? 's' : ''}
+            <Ionicons name="time-outline" size={13} color="#555" /> {durationText}
           </Text>
           <Text style={styles.rentalDetail}>
-            <Ionicons name="cash-outline" size={13} color="#555" /> Rs. {r.dailyRate || item.totalAmount} / day
+            <Ionicons name="cash-outline" size={13} color="#555" /> {rateText}
           </Text>
         </View>
         <Text style={styles.rentalDetail}>
@@ -113,25 +127,14 @@ export default function SellerOrders() {
         <Text style={styles.rentalDetail}>
           Payment: {PAYMENT_LABELS[item.paymentMethod] || item.paymentMethod || '—'}
         </Text>
-        {r.returnByDate && (
+        {returnText && (
           <Text style={[styles.rentalDetail, { color: '#E53935' }]}>
-            Return By: {new Date(r.returnByDate).toDateString()}
+            Return By: {returnText}
           </Text>
         )}
       </View>
     );
   };
-
-  const renderLeaseDetails = (item) => (
-    <View style={styles.leaseBox}>
-      <Text style={styles.productName}>{item.productName}</Text>
-      <View style={styles.leaseDetailRow}>
-        <Text style={styles.leaseDetail}>Plan: {item.leaseDetails?.duration} Months</Text>
-        <Text style={styles.leaseDetail}>Monthly: Rs. {item.leaseDetails?.monthlyInstallment}</Text>
-      </View>
-      <Text style={styles.leaseDetail}>Downpayment: Rs. {item.leaseDetails?.downpayment}</Text>
-    </View>
-  );
 
   const renderPurchaseDetails = (item) => (
     <View style={styles.standardOrderBox}>
@@ -143,14 +146,13 @@ export default function SellerOrders() {
   const renderOrder = ({ item }) => {
     const statusColor = STATUS_COLOR[item.status] || '#FFA726';
     const isRental = item.orderType === 'Rental';
-    const isLease = item.orderType === 'Lease';
 
     return (
       <View style={styles.orderCard}>
         {/* Header */}
         <View style={styles.cardHeader}>
           <Text style={styles.orderId}>
-            {isRental ? '🔧 Rental' : isLease ? '📋 Lease' : '🛒 Order'} #{item.id.slice(-6).toUpperCase()}
+            {isRental ? '🔧 Rental' : '🛒 Order'} #{item.id.slice(-6).toUpperCase()}
           </Text>
           <View style={[styles.statusBadge, { backgroundColor: statusColor + '20' }]}>
             <Text style={[styles.statusText, { color: statusColor }]}>{item.status}</Text>
@@ -164,7 +166,7 @@ export default function SellerOrders() {
         </View>
 
         {/* Order Content */}
-        {isRental ? renderRentalDetails(item) : isLease ? renderLeaseDetails(item) : renderPurchaseDetails(item)}
+        {isRental ? renderRentalDetails(item) : renderPurchaseDetails(item)}
 
         {/* Action Buttons */}
         {item.status === 'Pending' && (
@@ -230,10 +232,7 @@ const styles = StyleSheet.create({
   rentalBox: { backgroundColor: '#E3F2FD', padding: 12, borderRadius: 10, marginVertical: 5, borderLeftWidth: 4, borderLeftColor: '#42A5F5' },
   rentalRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
   rentalDetail: { fontSize: 13, color: '#444', marginBottom: 3 },
-  leaseBox: { backgroundColor: '#f9f9f9', padding: 12, borderRadius: 10, marginVertical: 5, borderLeftWidth: 4, borderLeftColor: '#2E8B57' },
   productName: { fontWeight: 'bold', color: '#333', fontSize: 15, marginBottom: 5 },
-  leaseDetailRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 3 },
-  leaseDetail: { fontSize: 13, color: '#666' },
   standardOrderBox: { paddingVertical: 5 },
   price: { fontWeight: 'bold', color: '#2E8B57', fontSize: 16, marginTop: 5 },
   actionRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 15 },
