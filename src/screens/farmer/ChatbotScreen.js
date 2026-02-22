@@ -165,7 +165,7 @@ export default function ChatbotScreen() {
 
   // ---------- MODEL RESOLVER ----------
   useEffect(() => {
-    setModelName("models/gemini-1.5-flash-8b");
+    setModelName("models/gemini-1.5-flash");
     setModelLoading(false);
   }, []);
 
