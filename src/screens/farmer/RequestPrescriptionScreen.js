@@ -19,7 +19,7 @@ import { AuthContext } from '../../contexts/AuthContext';
 import axios from 'axios';
 
 const GEMINI_API_KEY = 'AIzaSyBueENZaOukQcB8k7CauduSmIp1SiCPrGg';
-const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1';
+const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 
 export default function RequestPrescriptionScreen({ navigation }) {
   const { user } = useContext(AuthContext);
@@ -60,7 +60,7 @@ Your answer (VALID or INVALID):`;
       };
 
       const res = await axios.post(
-        `${GEMINI_BASE}/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+        `${GEMINI_BASE}/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
         payload,
         { headers: { 'Content-Type': 'application/json' }, timeout: 20000 }
       );
