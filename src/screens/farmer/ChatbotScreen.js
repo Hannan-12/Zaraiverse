@@ -19,6 +19,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import axios from "axios";
 import * as Clipboard from "expo-clipboard";
+import { GROQ_API_KEY, GROQ_BASE } from "../../config/keys";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // --- FIREBASE IMPORTS ---
@@ -65,28 +66,24 @@ export default function ChatbotScreen() {
 
   const flatListRef = useRef(null);
 
-  const API_KEY = "AIzaSyAijKvAx1ylHNu_XadcGPWz7A0NJ_tCFfs"; //
-  const BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
-
   const axiosClient = useMemo(() => {
     return axios.create({
-      baseURL: BASE_URL,
+      baseURL: GROQ_BASE,
       timeout: 30000,
       headers: {
         "Content-Type": "application/json",
-        "x-goog-api-key": API_KEY,
+        Authorization: `Bearer ${GROQ_API_KEY}`,
       },
     });
-  }, [API_KEY]);
+  }, []);
 
   // ---------- Helpers ----------
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
   const extractFullTextAndFinish = (apiResponse) => {
-    const candidate = apiResponse?.candidates?.[0];
-    const parts = candidate?.content?.parts || [];
-    const fullText = parts.map((p) => (typeof p?.text === "string" ? p.text : "")).join("");
-    const finishReason = candidate?.finishReason;
+    const choice = apiResponse?.choices?.[0];
+    const fullText = choice?.message?.content || "";
+    const finishReason = choice?.finish_reason;
     return { fullText, finishReason };
   };
 
@@ -104,8 +101,8 @@ export default function ChatbotScreen() {
   const buildContentsFromChat = (chat) => {
     const contents = [];
     for (const m of chat) {
-      if (m.sender === "user") contents.push({ role: "user", parts: [{ text: m.text }] });
-      if (m.sender === "bot") contents.push({ role: "model", parts: [{ text: m.text }] });
+      if (m.sender === "user") contents.push({ role: "user", content: m.text });
+      if (m.sender === "bot") contents.push({ role: "assistant", content: m.text });
     }
     return contents;
   };
@@ -165,16 +162,12 @@ export default function ChatbotScreen() {
 
   // ---------- MODEL RESOLVER ----------
   useEffect(() => {
-    setModelName("models/gemini-2.0-flash-lite");
+    setModelName("llama-3.3-70b-versatile");
     setModelLoading(false);
   }, []);
 
   // ---------- SYSTEM INSTRUCTION ----------
-  // Focused agricultural system prompt to avoid repetitive/off-topic responses
-  const SYSTEM_INSTRUCTION = {
-    parts: [
-      {
-        text: `You are ZaraiVerse AI — a smart, helpful agricultural assistant for Pakistani farmers.
+  const SYSTEM_INSTRUCTION = `You are ZaraiVerse AI — a smart, helpful agricultural assistant for Pakistani farmers.
 
 Your role:
 - Answer questions about crops, soil, irrigation, fertilizers, pesticides, seeds, and farming techniques.
@@ -190,23 +183,26 @@ Rules you MUST follow:
 4. If a question is completely unrelated to farming or agriculture, politely redirect: "I'm specialized in agricultural topics. Could you ask me something about farming?"
 5. When giving recommendations, always mention quantities, timings, or specific product names when relevant.
 6. Use simple Urdu/English terms where helpful (e.g., write "کھاد (fertilizer)").
-7. Do not start consecutive responses with the same opening phrase.`,
-      },
-    ],
-  };
+7. Do not start consecutive responses with the same opening phrase.`;
 
-  // ---------- GEMINI CALL ----------
-  const callGeminiGenerateContent = async (contents, { maxOutputTokens = 1400 } = {}) => {
+  // ---------- GROQ CALL ----------
+  const callGroqChat = async (contents, { maxOutputTokens = 1400 } = {}) => {
+    const messages = [
+      { role: "system", content: SYSTEM_INSTRUCTION },
+      ...contents,
+    ];
     const payload = {
-      system_instruction: SYSTEM_INSTRUCTION,
-      contents,
-      generationConfig: { temperature: 0.7, maxOutputTokens, topP: 0.9 },
+      model: modelName,
+      messages,
+      temperature: 0.7,
+      max_tokens: maxOutputTokens,
+      top_p: 0.9,
     };
 
     const MAX_RETRIES = 3;
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       try {
-        const res = await axiosClient.post(`/${modelName}:generateContent`, payload);
+        const res = await axiosClient.post("/chat/completions", payload);
         return res?.data;
       } catch (err) {
         const data = err?.response?.data;
@@ -221,14 +217,14 @@ Rules you MUST follow:
   const askAI = async (chatSnapshot) => {
     if (!modelName) return "AI model not available. Please check your API key.";
     const contents = buildContentsFromChat(chatSnapshot);
-    const data1 = await callGeminiGenerateContent(contents, { maxOutputTokens: 1400 });
+    const data1 = await callGroqChat(contents, { maxOutputTokens: 1400 });
     const { fullText: t1, finishReason: r1 } = extractFullTextAndFinish(data1);
     let finalText = (t1 || "").trim();
 
-    if (r1 === "MAX_TOKENS" || looksTruncated(finalText)) {
+    if (r1 === "length" || looksTruncated(finalText)) {
       const continuePrompt = "Continue from exactly where you stopped.";
-      const contents2 = [...contents, { role: "model", parts: [{ text: finalText }] }, { role: "user", parts: [{ text: continuePrompt }] }];
-      const data2 = await callGeminiGenerateContent(contents2, { maxOutputTokens: 1400 });
+      const contents2 = [...contents, { role: "assistant", content: finalText }, { role: "user", content: continuePrompt }];
+      const data2 = await callGroqChat(contents2, { maxOutputTokens: 1400 });
       const { fullText: t2 } = extractFullTextAndFinish(data2);
       if (t2) finalText = `${finalText}\n${t2}`.trim();
     }
@@ -394,7 +390,7 @@ Rules you MUST follow:
                 </View>
               </View>
               <Text style={styles.headerSub}>
-                {modelLoading ? "Connecting..." : modelName ? `Model: ${modelName.replace("models/", "")}` : "Offline"}
+                {modelLoading ? "Connecting..." : modelName ? `Model: ${modelName}` : "Offline"}
               </Text>
               <View style={styles.headerRow2}>
                 <TouchableOpacity onPress={regenerateLast} style={styles.smallBtn} disabled={isLoading}>
