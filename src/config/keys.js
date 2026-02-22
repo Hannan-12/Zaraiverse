@@ -1,4 +1,5 @@
-// API keys are loaded from .env (gitignored)
-// In .env set: EXPO_PUBLIC_GROQ_API_KEY=your_key_here
-export const GROQ_API_KEY = process.env.EXPO_PUBLIC_GROQ_API_KEY;
-export const GROQ_BASE = 'https://api.groq.com/openai/v1';
+import Constants from 'expo-constants';
+
+// Values are injected at build time via app.config.js extra (read from .env by Expo CLI)
+export const GROQ_API_KEY = Constants.expoConfig?.extra?.groqApiKey;
+export const GROQ_BASE = Constants.expoConfig?.extra?.groqBase ?? 'https://api.groq.com/openai/v1';
