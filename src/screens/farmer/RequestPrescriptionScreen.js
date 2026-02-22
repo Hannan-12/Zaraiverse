@@ -59,18 +59,7 @@ Your answer (VALID or INVALID):`;
         generationConfig: { temperature: 0, maxOutputTokens: 10 },
       };
 
-      const modelsRes = await axios.get(`${GEMINI_BASE}/models`, {
-        headers: { 'x-goog-api-key': GEMINI_API_KEY },
-      });
-      const models = modelsRes.data?.models || [];
-      const flashModel = models.find(
-        (m) =>
-          m.name?.includes('flash') &&
-          (m.supportedGenerationMethods || []).includes('generateContent')
-      );
-      const modelName = flashModel?.name || 'models/gemini-1.5-flash';
-
-      const res = await axios.post(`${GEMINI_BASE}/${modelName}:generateContent`, payload, {
+      const res = await axios.post(`${GEMINI_BASE}/models/gemini-1.5-flash:generateContent`, payload, {
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY },
         timeout: 20000,
       });
@@ -128,7 +117,7 @@ Your answer (VALID or INVALID):`;
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ImagePicker.MediaType.Images,
       allowsEditing: true,
       aspect: [4, 3],
       quality: 0.3, // Low quality to fit in Firestore (1MB limit)
