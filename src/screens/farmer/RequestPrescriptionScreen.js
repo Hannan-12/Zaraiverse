@@ -18,7 +18,7 @@ import { collection, addDoc, Timestamp } from 'firebase/firestore';
 import { AuthContext } from '../../contexts/AuthContext';
 import axios from 'axios';
 
-const GEMINI_API_KEY = 'AIzaSyCJ--3hHUewZ10qeN124oiHXlA7cq2p4YM';
+const GEMINI_API_KEY = 'AIzaSyBQYvdqD43HAVMwL6tTm6Rejad7_4IYido';
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 
 export default function RequestPrescriptionScreen({ navigation }) {
