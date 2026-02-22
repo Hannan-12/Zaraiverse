@@ -18,7 +18,7 @@ import { collection, addDoc, Timestamp } from 'firebase/firestore';
 import { AuthContext } from '../../contexts/AuthContext';
 import axios from 'axios';
 
-const GEMINI_API_KEY = 'AIzaSyBueENZaOukQcB8k7CauduSmIp1SiCPrGg';
+const GEMINI_API_KEY = 'AIzaSyAijKvAx1ylHNu_XadcGPWz7A0NJ_tCFfs';
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 
 export default function RequestPrescriptionScreen({ navigation }) {
@@ -60,7 +60,7 @@ Your answer (VALID or INVALID):`;
       };
 
       const res = await axios.post(
-        `${GEMINI_BASE}/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+        `${GEMINI_BASE}/models/gemini-2.0-flash-lite:generateContent?key=${GEMINI_API_KEY}`,
         payload,
         { headers: { 'Content-Type': 'application/json' }, timeout: 20000 }
       );

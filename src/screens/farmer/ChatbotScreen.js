@@ -65,7 +65,7 @@ export default function ChatbotScreen() {
 
   const flatListRef = useRef(null);
 
-  const API_KEY = "AIzaSyBueENZaOukQcB8k7CauduSmIp1SiCPrGg"; //
+  const API_KEY = "AIzaSyAijKvAx1ylHNu_XadcGPWz7A0NJ_tCFfs"; //
   const BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 
   const axiosClient = useMemo(() => {
@@ -165,7 +165,7 @@ export default function ChatbotScreen() {
 
   // ---------- MODEL RESOLVER ----------
   useEffect(() => {
-    setModelName("models/gemini-2.0-flash");
+    setModelName("models/gemini-2.0-flash-lite");
     setModelLoading(false);
   }, []);
 
