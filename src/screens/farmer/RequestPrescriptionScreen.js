@@ -19,7 +19,7 @@ import { AuthContext } from '../../contexts/AuthContext';
 import axios from 'axios';
 
 const GEMINI_API_KEY = 'AIzaSyBQYvdqD43HAVMwL6tTm6Rejad7_4IYido';
-const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
+const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1';
 
 export default function RequestPrescriptionScreen({ navigation }) {
   const { user } = useContext(AuthContext);
