@@ -10,7 +10,7 @@ import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import axios from 'axios';
 
 // Gemini API key (same as chatbot)
-const GEMINI_API_KEY = 'AIzaSyCJ--3hHUewZ10qeN124oiHXlA7cq2p4YM';
+const GEMINI_API_KEY = 'AIzaSyBQYvdqD43HAVMwL6tTm6Rejad7_4IYido';
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 
 // Validation keywords that must appear in the image for each category
@@ -70,7 +70,7 @@ Your answer (VALID or INVALID):`;
 
       // Discover model name (use flash for speed)
       const res = await axios.post(
-        `${GEMINI_BASE}/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+        `${GEMINI_BASE}/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
         payload,
         { headers: { 'Content-Type': 'application/json' }, timeout: 20000 }
       );
