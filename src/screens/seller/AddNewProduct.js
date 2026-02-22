@@ -11,7 +11,7 @@ import axios from 'axios';
 
 // Gemini API key (same as chatbot)
 const GEMINI_API_KEY = 'AIzaSyBQYvdqD43HAVMwL6tTm6Rejad7_4IYido';
-const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
+const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1';
 
 // Validation keywords that must appear in the image for each category
 const CATEGORY_VALIDATION = {

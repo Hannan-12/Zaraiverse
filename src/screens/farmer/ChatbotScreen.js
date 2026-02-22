@@ -66,7 +66,7 @@ export default function ChatbotScreen() {
   const flatListRef = useRef(null);
 
   const API_KEY = "AIzaSyBQYvdqD43HAVMwL6tTm6Rejad7_4IYido"; //
-  const BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
+  const BASE_URL = "https://generativelanguage.googleapis.com/v1";
 
   const axiosClient = useMemo(() => {
     return axios.create({
