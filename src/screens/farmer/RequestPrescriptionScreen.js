@@ -117,7 +117,7 @@ Your answer (VALID or INVALID):`;
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaType.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [4, 3],
       quality: 0.3, // Low quality to fit in Firestore (1MB limit)
