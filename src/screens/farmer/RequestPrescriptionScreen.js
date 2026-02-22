@@ -16,6 +16,10 @@ import * as ImagePicker from 'expo-image-picker';
 import { db } from '../../services/firebase';
 import { collection, addDoc, Timestamp } from 'firebase/firestore';
 import { AuthContext } from '../../contexts/AuthContext';
+import axios from 'axios';
+
+const GEMINI_API_KEY = 'AIzaSyCnFBDYX9qkIbNmRumEKDBXgrkyKpFc99M';
+const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 
 export default function RequestPrescriptionScreen({ navigation }) {
   const { user } = useContext(AuthContext);
@@ -24,7 +28,96 @@ export default function RequestPrescriptionScreen({ navigation }) {
   const [description, setDescription] = useState('');
   const [imageUri, setImageUri] = useState(null); // Display URI
   const [imageBase64, setImageBase64] = useState(null); // Data for Firestore
+  const [rawBase64, setRawBase64] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [validating, setValidating] = useState(false);
+  const [imageValid, setImageValid] = useState(null); // null | true | false
+
+  // --- Validate image with Gemini AI ---
+  const validateImageWithAI = async (base64) => {
+    setValidating(true);
+    setImageValid(null);
+    try {
+      const prompt = `You are an image validator for an agricultural advisory app.
+Look at this image carefully and determine if it shows a crop, plant, leaf, seed, agricultural field, or a farming-related problem (such as pest damage, disease, yellowing, wilting, or soil issues).
+
+Answer with ONLY one of:
+- "VALID" if the image clearly shows a crop, plant, or agricultural issue
+- "INVALID" if the image does NOT match (e.g. it shows a person, child, animal, random object, indoor scene, or anything unrelated to farming/plants)
+
+Your answer (VALID or INVALID):`;
+
+      const payload = {
+        contents: [
+          {
+            parts: [
+              { text: prompt },
+              { inline_data: { mime_type: 'image/jpeg', data: base64 } },
+            ],
+          },
+        ],
+        generationConfig: { temperature: 0, maxOutputTokens: 10 },
+      };
+
+      const modelsRes = await axios.get(`${GEMINI_BASE}/models`, {
+        headers: { 'x-goog-api-key': GEMINI_API_KEY },
+      });
+      const models = modelsRes.data?.models || [];
+      const flashModel = models.find(
+        (m) =>
+          m.name?.includes('flash') &&
+          (m.supportedGenerationMethods || []).includes('generateContent')
+      );
+      const modelName = flashModel?.name || 'models/gemini-1.5-flash';
+
+      const res = await axios.post(`${GEMINI_BASE}/${modelName}:generateContent`, payload, {
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY },
+        timeout: 20000,
+      });
+
+      const text = res.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      const isValid = text.trim().toUpperCase().startsWith('VALID');
+      setImageValid(isValid);
+      return isValid;
+    } catch (e) {
+      console.log('Image validation error:', e?.message);
+      setImageValid(true); // allow on network/quota error
+      return true;
+    } finally {
+      setValidating(false);
+    }
+  };
+
+  // --- Validation badge UI ---
+  const getValidationBadge = () => {
+    if (validating) {
+      return (
+        <View style={styles.validationBadge}>
+          <ActivityIndicator size="small" color="#2E7D32" />
+          <Text style={styles.validatingText}>Validating image...</Text>
+        </View>
+      );
+    }
+    if (imageValid === true) {
+      return (
+        <View style={[styles.validationBadge, { backgroundColor: '#E8F5E9' }]}>
+          <Ionicons name="checkmark-circle" size={18} color="#2E7D32" />
+          <Text style={[styles.validatingText, { color: '#2E7D32' }]}>Image looks good!</Text>
+        </View>
+      );
+    }
+    if (imageValid === false) {
+      return (
+        <View style={[styles.validationBadge, { backgroundColor: '#FFEBEE' }]}>
+          <Ionicons name="close-circle" size={18} color="#E53935" />
+          <Text style={[styles.validatingText, { color: '#E53935' }]}>
+            Please upload an image of your crop or the affected plant/area.
+          </Text>
+        </View>
+      );
+    }
+    return null;
+  };
 
   // --- Pick Image ---
   const handlePickImage = async () => {
@@ -43,8 +136,12 @@ export default function RequestPrescriptionScreen({ navigation }) {
     });
 
     if (!result.canceled && result.assets) {
-      setImageUri(result.assets[0].uri);
-      setImageBase64(`data:image/jpeg;base64,${result.assets[0].base64}`);
+      const asset = result.assets[0];
+      setImageUri(asset.uri);
+      setRawBase64(asset.base64);
+      setImageBase64(`data:image/jpeg;base64,${asset.base64}`);
+      setImageValid(null);
+      await validateImageWithAI(asset.base64);
     }
   };
 
@@ -52,6 +149,14 @@ export default function RequestPrescriptionScreen({ navigation }) {
   const handleSubmit = async () => {
     if (!cropName || !description) {
       Alert.alert("Missing Details", "Please enter crop name and description.");
+      return;
+    }
+
+    if (imageValid === false) {
+      Alert.alert(
+        'Invalid Image',
+        'The attached image does not appear to show a crop or plant issue. Please upload a relevant photo of your crop or the affected area.'
+      );
       return;
     }
 
@@ -121,12 +226,13 @@ export default function RequestPrescriptionScreen({ navigation }) {
             </View>
           )}
         </TouchableOpacity>
+        {imageUri && getValidationBadge()}
       </View>
 
-      <TouchableOpacity 
-        style={styles.submitButton} 
+      <TouchableOpacity
+        style={[styles.submitButton, (loading || validating) && { backgroundColor: '#aaa' }]}
         onPress={handleSubmit}
-        disabled={loading}
+        disabled={loading || validating}
       >
         {loading ? (
           <ActivityIndicator color="#fff" />
@@ -170,6 +276,11 @@ const styles = StyleSheet.create({
   previewImage: { width: '100%', height: '100%' },
   placeholder: { alignItems: 'center' },
   placeholderText: { color: '#666', marginTop: 5 },
+  validationBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#F5F5F5', borderRadius: 8, padding: 10, marginTop: 8,
+  },
+  validatingText: { fontSize: 13, color: '#555', flex: 1 },
 
   submitButton: {
     backgroundColor: '#2E7D32',
