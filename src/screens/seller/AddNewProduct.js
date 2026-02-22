@@ -69,7 +69,7 @@ Your answer (VALID or INVALID):`;
       };
 
       // Discover model name (use flash for speed)
-      const res = await axios.post(`${GEMINI_BASE}/models/gemini-1.5-flash:generateContent`, payload, {
+      const res = await axios.post(`${GEMINI_BASE}/models/gemini-2.0-flash:generateContent`, payload, {
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY },
         timeout: 20000,
       });
@@ -79,10 +79,9 @@ Your answer (VALID or INVALID):`;
       setImageValid(isValid);
       return isValid;
     } catch (e) {
-      // If validation fails (network/quota), warn but allow upload
       console.log('Image validation error:', e?.message);
-      setImageValid(true); // allow on error
-      return true;
+      setImageValid(null); // skip validation on API error, don't auto-approve
+      return false;
     } finally {
       setValidating(false);
     }
