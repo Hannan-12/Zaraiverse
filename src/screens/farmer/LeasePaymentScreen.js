@@ -70,8 +70,11 @@ export default function LeasePaymentScreen({ route }) {
   const meta = STATUS_META[order.status] || STATUS_META['Pending'];
   const currentStep = STATUS_STEPS.indexOf(order.status);
 
-  const returnDate = rental.returnByDate
-    ? new Date(rental.returnByDate).toDateString()
+  const returnDateObj = rental.returnByDate ? new Date(rental.returnByDate) : null;
+  const returnDate = returnDateObj
+    ? rental.durationType === 'hours'
+      ? `${returnDateObj.toDateString()} at ${returnDateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+      : returnDateObj.toDateString()
     : 'N/A';
 
   return (
@@ -113,13 +116,21 @@ export default function LeasePaymentScreen({ route }) {
         <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>Duration</Text>
           <Text style={styles.detailVal}>
-            {rental.durationDays || '—'} day{rental.durationDays !== 1 ? 's' : ''}
+            {rental.durationType === 'hours'
+              ? `${rental.durationValue} hour${rental.durationValue !== 1 ? 's' : ''}`
+              : `${rental.durationValue || rental.durationDays || '—'} day${(rental.durationValue || rental.durationDays) !== 1 ? 's' : ''}`}
           </Text>
         </View>
 
         <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>Daily Rate</Text>
-          <Text style={styles.detailVal}>Rs. {rental.dailyRate || '—'}</Text>
+          <Text style={styles.detailLabel}>
+            {rental.durationType === 'hours' ? 'Hourly Rate' : 'Daily Rate'}
+          </Text>
+          <Text style={styles.detailVal}>
+            {rental.durationType === 'hours'
+              ? `Rs. ${rental.hourlyRate || '—'} / hour`
+              : `Rs. ${rental.dailyRate || '—'} / day`}
+          </Text>
         </View>
 
         <View style={styles.detailRow}>
