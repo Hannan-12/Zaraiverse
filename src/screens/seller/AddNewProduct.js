@@ -90,6 +90,12 @@ Your answer (VALID or INVALID):`;
   };
 
   const handlePickImage = async () => {
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permissionResult.granted) {
+      Alert.alert('Permission Required', 'Please allow access to photos.');
+      return;
+    }
+
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
@@ -98,7 +104,7 @@ Your answer (VALID or INVALID):`;
       base64: true,
     });
 
-    if (!result.canceled) {
+    if (!result.canceled && result.assets) {
       const asset = result.assets[0];
       setImageUri(asset.uri);
       setRawBase64(asset.base64);
