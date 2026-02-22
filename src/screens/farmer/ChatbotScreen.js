@@ -100,9 +100,14 @@ export default function ChatbotScreen() {
 
   const buildContentsFromChat = (chat) => {
     const contents = [];
+    let seenUser = false;
     for (const m of chat) {
-      if (m.sender === "user") contents.push({ role: "user", content: m.text });
-      if (m.sender === "bot") contents.push({ role: "assistant", content: m.text });
+      if (m.sender === "user") {
+        seenUser = true;
+        contents.push({ role: "user", content: m.text });
+      } else if (m.sender === "bot" && seenUser) {
+        contents.push({ role: "assistant", content: m.text });
+      }
     }
     return contents;
   };
