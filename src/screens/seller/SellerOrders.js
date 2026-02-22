@@ -74,6 +74,26 @@ export default function SellerOrders() {
     );
   };
 
+  const handleMarkActive = async (order) => {
+    Alert.alert(
+      'Hand Over Equipment',
+      'Confirm that the equipment has been handed over to the farmer?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Confirm',
+          onPress: async () => {
+            try {
+              await updateDoc(doc(db, 'orders', order.id), { status: 'Active' });
+            } catch (e) {
+              Alert.alert('Error', 'Could not update status.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleMarkReturned = async (order) => {
     Alert.alert(
       'Mark as Returned',
@@ -186,6 +206,17 @@ export default function SellerOrders() {
           </View>
         )}
 
+        {/* Mark as Active button for confirmed rentals (equipment handed over) */}
+        {isRental && item.status === 'Confirmed' && (
+          <TouchableOpacity
+            style={[styles.actionBtn, styles.activeBtn, { marginTop: 12 }]}
+            onPress={() => handleMarkActive(item)}
+          >
+            <Ionicons name="construct-outline" size={16} color="#fff" style={{ marginRight: 6 }} />
+            <Text style={styles.btnText}>Mark as Active</Text>
+          </TouchableOpacity>
+        )}
+
         {/* Mark as Returned button for active rentals */}
         {isRental && item.status === 'Active' && (
           <TouchableOpacity
@@ -239,6 +270,7 @@ const styles = StyleSheet.create({
   actionBtn: { flex: 0.48, padding: 12, borderRadius: 10, alignItems: 'center', flexDirection: 'row', justifyContent: 'center' },
   acceptBtn: { backgroundColor: '#2E8B57' },
   rejectBtn: { backgroundColor: '#EF5350' },
+  activeBtn: { backgroundColor: '#FB8C00', flex: 1 },
   returnBtn: { backgroundColor: '#42A5F5', flex: 1 },
   btnText: { color: '#fff', fontWeight: 'bold' },
   empty: { textAlign: 'center', marginTop: 50, color: '#999' },
