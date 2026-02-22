@@ -69,18 +69,20 @@ Your answer (VALID or INVALID):`;
       };
 
       // Discover model name (use flash for speed)
-      const res = await axios.post(`${GEMINI_BASE}/models/gemini-2.0-flash:generateContent`, payload, {
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY },
-        timeout: 20000,
-      });
+      const res = await axios.post(
+        `${GEMINI_BASE}/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+        payload,
+        { headers: { 'Content-Type': 'application/json' }, timeout: 20000 }
+      );
 
       const text = res.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      console.log('Gemini response text:', text);
       const isValid = text.trim().toUpperCase().startsWith('VALID');
       setImageValid(isValid);
       return isValid;
     } catch (e) {
-      console.log('Image validation error:', e?.message);
-      setImageValid(null); // skip validation on API error, don't auto-approve
+      console.log('Image validation error:', e?.response?.status, JSON.stringify(e?.response?.data));
+      setImageValid(null);
       return false;
     } finally {
       setValidating(false);
