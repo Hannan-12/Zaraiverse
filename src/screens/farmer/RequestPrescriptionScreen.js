@@ -60,7 +60,7 @@ Your answer (VALID or INVALID):`;
       };
 
       const res = await axios.post(
-        `${GEMINI_BASE}/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+        `${GEMINI_BASE}/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
         payload,
         { headers: { 'Content-Type': 'application/json' }, timeout: 20000 }
       );
