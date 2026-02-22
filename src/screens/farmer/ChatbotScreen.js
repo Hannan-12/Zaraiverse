@@ -65,7 +65,7 @@ export default function ChatbotScreen() {
 
   const flatListRef = useRef(null);
 
-  const API_KEY = "AIzaSyCnFBDYX9qkIbNmRumEKDBXgrkyKpFc99M"; //
+  const API_KEY = "AIzaSyCJ--3hHUewZ10qeN124oiHXlA7cq2p4YM"; //
   const BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 
   const axiosClient = useMemo(() => {
@@ -164,31 +164,9 @@ export default function ChatbotScreen() {
   }, [messages]);
 
   // ---------- MODEL RESOLVER ----------
-  const resolveModel = async () => {
-    try {
-      setModelLoading(true);
-      const res = await axiosClient.get("/models");
-      const models = res?.data?.models || [];
-      const usable = models.filter((m) =>
-        (m.supportedGenerationMethods || []).includes("generateContent")
-      );
-
-      const preferred =
-        usable.find((m) => m.name?.includes("gemini-1.5-flash")) ||
-        usable.find((m) => m.name?.includes("flash")) ||
-        usable[0];
-
-      setModelName(preferred?.name || null);
-    } catch (e) {
-      console.log("ListModels error:", e?.response?.data || e.message);
-      setModelName(null);
-    } finally {
-      setModelLoading(false);
-    }
-  };
-
   useEffect(() => {
-    resolveModel();
+    setModelName("models/gemini-1.5-flash-8b");
+    setModelLoading(false);
   }, []);
 
   // ---------- SYSTEM INSTRUCTION ----------

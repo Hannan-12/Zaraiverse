@@ -18,7 +18,7 @@ import { collection, addDoc, Timestamp } from 'firebase/firestore';
 import { AuthContext } from '../../contexts/AuthContext';
 import axios from 'axios';
 
-const GEMINI_API_KEY = 'AIzaSyCnFBDYX9qkIbNmRumEKDBXgrkyKpFc99M';
+const GEMINI_API_KEY = 'AIzaSyCJ--3hHUewZ10qeN124oiHXlA7cq2p4YM';
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 
 export default function RequestPrescriptionScreen({ navigation }) {
@@ -59,18 +59,20 @@ Your answer (VALID or INVALID):`;
         generationConfig: { temperature: 0, maxOutputTokens: 10 },
       };
 
-      const res = await axios.post(`${GEMINI_BASE}/models/gemini-2.0-flash:generateContent`, payload, {
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY },
-        timeout: 20000,
-      });
+      const res = await axios.post(
+        `${GEMINI_BASE}/models/gemini-1.5-flash-8b:generateContent?key=${GEMINI_API_KEY}`,
+        payload,
+        { headers: { 'Content-Type': 'application/json' }, timeout: 20000 }
+      );
 
       const text = res.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      console.log('Gemini response text:', text);
       const isValid = text.trim().toUpperCase().startsWith('VALID');
       setImageValid(isValid);
       return isValid;
     } catch (e) {
-      console.log('Image validation error:', e?.message);
-      setImageValid(null); // skip validation on API error, don't auto-approve
+      console.log('Image validation error:', e?.response?.status, JSON.stringify(e?.response?.data));
+      setImageValid(null);
       return false;
     } finally {
       setValidating(false);
