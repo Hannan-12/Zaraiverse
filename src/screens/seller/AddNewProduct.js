@@ -8,10 +8,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { db, auth } from '../../services/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import axios from 'axios';
-
-// Gemini API key (same as chatbot)
-const GEMINI_API_KEY = 'AIzaSyAijKvAx1ylHNu_XadcGPWz7A0NJ_tCFfs';
-const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
+import { GROQ_API_KEY, GROQ_BASE } from '../../config/keys';
 
 // Validation keywords that must appear in the image for each category
 const CATEGORY_VALIDATION = {
@@ -36,7 +33,7 @@ export default function AddNewProduct({ navigation }) {
   const [validating, setValidating] = useState(false);
   const [imageValid, setImageValid] = useState(null); // null | true | false
 
-  // Validate image using Gemini Vision
+  // Validate image using Groq Vision
   const validateImageWithAI = async (base64, category) => {
     setValidating(true);
     setImageValid(null);
@@ -52,31 +49,34 @@ Answer with ONLY one of:
 Your answer (VALID or INVALID):`;
 
       const payload = {
-        contents: [
+        model: 'llama-3.2-11b-vision-preview',
+        messages: [
           {
-            parts: [
-              { text: prompt },
-              {
-                inline_data: {
-                  mime_type: 'image/jpeg',
-                  data: base64,
-                },
-              },
+            role: 'user',
+            content: [
+              { type: 'text', text: prompt },
+              { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64}` } },
             ],
           },
         ],
-        generationConfig: { temperature: 0, maxOutputTokens: 10 },
+        temperature: 0,
+        max_tokens: 10,
       };
 
-      // Discover model name (use flash for speed)
       const res = await axios.post(
-        `${GEMINI_BASE}/models/gemini-2.0-flash-lite:generateContent?key=${GEMINI_API_KEY}`,
+        `${GROQ_BASE}/chat/completions`,
         payload,
-        { headers: { 'Content-Type': 'application/json' }, timeout: 20000 }
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${GROQ_API_KEY}`,
+          },
+          timeout: 20000,
+        }
       );
 
-      const text = res.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      console.log('Gemini response text:', text);
+      const text = res.data?.choices?.[0]?.message?.content || '';
+      console.log('Groq response text:', text);
       const isValid = text.trim().toUpperCase().startsWith('VALID');
       setImageValid(isValid);
       return isValid;
