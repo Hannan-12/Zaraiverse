@@ -59,7 +59,7 @@ Your answer (VALID or INVALID):`;
         generationConfig: { temperature: 0, maxOutputTokens: 10 },
       };
 
-      const res = await axios.post(`${GEMINI_BASE}/models/gemini-1.5-flash:generateContent`, payload, {
+      const res = await axios.post(`${GEMINI_BASE}/models/gemini-2.0-flash:generateContent`, payload, {
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY },
         timeout: 20000,
       });
@@ -70,8 +70,8 @@ Your answer (VALID or INVALID):`;
       return isValid;
     } catch (e) {
       console.log('Image validation error:', e?.message);
-      setImageValid(true); // allow on network/quota error
-      return true;
+      setImageValid(null); // skip validation on API error, don't auto-approve
+      return false;
     } finally {
       setValidating(false);
     }
