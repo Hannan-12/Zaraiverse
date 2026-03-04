@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect } from 'react';
+import { useContext, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,58 +11,40 @@ import {
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { AuthContext } from '../../contexts/AuthContext';
+import { LanguageContext } from '../../contexts/LanguageContext';
 import { db } from '../../services/firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 
 export default function SellerDashboard({ navigation }) {
   const { user, logout } = useContext(AuthContext);
-  
-  const [stats, setStats] = useState({
-    totalProducts: 0,
-    activeOrders: 0,
-    revenue: 0,
-  });
+  const { t, language, setLanguage } = useContext(LanguageContext);
+
+  const [stats, setStats] = useState({ totalProducts: 0, activeOrders: 0, revenue: 0 });
   const [loadingStats, setLoadingStats] = useState(true);
+
+  const toggleLanguage = () => setLanguage(language === 'en' ? 'ur' : 'en');
 
   useEffect(() => {
     if (!user) return;
 
-    // 1. Listen for Product Count
-    const qProducts = query(
-      collection(db, 'products'),
-      where('sellerId', '==', user.uid)
-    );
-
+    const qProducts = query(collection(db, 'products'), where('sellerId', '==', user.uid));
     const unsubProducts = onSnapshot(qProducts, (snapshot) => {
       setStats(prev => ({ ...prev, totalProducts: snapshot.size }));
     });
 
-    // 2. Listen for Orders (Active count and Total Revenue)
-    const qOrders = query(
-      collection(db, 'orders'),
-      where('sellerId', '==', user.uid)
-    );
-
+    const qOrders = query(collection(db, 'orders'), where('sellerId', '==', user.uid));
     const unsubOrders = onSnapshot(qOrders, (snapshot) => {
       let active = 0;
       let totalRev = 0;
 
       snapshot.docs.forEach(docSnap => {
         const data = docSnap.data();
-
-        // Active Orders Logic
         if (['Pending', 'Processing', 'Awaiting Downpayment', 'Confirmed', 'Active'].includes(data.status)) {
           active++;
         }
-
-        // Revenue Calculation Logic
         if (data.orderType === 'Rental') {
-          // Rental Orders: count full amount when returned (or in use)
-          if (['Active', 'Returned'].includes(data.status)) {
-            totalRev += parseFloat(data.totalAmount) || 0;
-          }
+          if (['Active', 'Returned'].includes(data.status)) totalRev += parseFloat(data.totalAmount) || 0;
         } else if (data.orderType === 'Lease') {
-          // Lease Orders: Revenue = Downpayment + all paid installments
           if (['Active', 'Delivered'].includes(data.status)) {
             const dp = parseFloat(data.leaseDetails?.downpayment) || 0;
             const monthly = parseFloat(data.leaseDetails?.monthlyInstallment) || 0;
@@ -70,93 +52,68 @@ export default function SellerDashboard({ navigation }) {
             totalRev += dp + (monthly * installmentsPaid);
           }
         } else {
-          // Regular Purchases: Count if delivered
-          if (data.status === 'Delivered') {
-            totalRev += parseFloat(data.totalAmount) || 0;
-          }
+          if (data.status === 'Delivered') totalRev += parseFloat(data.totalAmount) || 0;
         }
       });
 
-      setStats(prev => ({
-        ...prev,
-        activeOrders: active,
-        revenue: totalRev,
-      }));
+      setStats(prev => ({ ...prev, activeOrders: active, revenue: totalRev }));
       setLoadingStats(false);
     }, (error) => {
-      console.error("Stats Error:", error);
+      console.error('Stats Error:', error);
       setLoadingStats(false);
     });
 
-    return () => {
-      unsubProducts();
-      unsubOrders();
-    };
+    return () => { unsubProducts(); unsubOrders(); };
   }, [user]);
 
   const menuItems = [
-    {
-      title: 'Add Product',
-      icon: 'add-box',
-      screen: 'PostProduct',
-      colors: ['#66BB6A', '#43A047'],
-    },
-    {
-      title: 'Products',
-      icon: 'inventory',
-      screen: 'ManageProducts',
-      colors: ['#388E3C', '#2E7D32'],
-    },
-    {
-      title: 'Orders',
-      icon: 'receipt-long',
-      screen: 'SellerOrders',
-      colors: ['#FFA726', '#FB8C00'],
-    },
-    {
-      title: 'Shipments',
-      icon: 'local-shipping',
-      screen: 'ManageShipment',
-      colors: ['#42A5F5', '#1E88E5'],
-    },
+    { key: 'addProduct',  icon: 'add-box',         screen: 'PostProduct',     colors: ['#66BB6A', '#43A047'] },
+    { key: 'products',    icon: 'inventory',        screen: 'ManageProducts',  colors: ['#388E3C', '#2E7D32'] },
+    { key: 'orders',      icon: 'receipt-long',     screen: 'SellerOrders',    colors: ['#FFA726', '#FB8C00'] },
+    { key: 'shipments',   icon: 'local-shipping',   screen: 'ManageShipment',  colors: ['#42A5F5', '#1E88E5'] },
   ];
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
-      
+
       <LinearGradient colors={['#2E8B57', '#1B5E20']} style={styles.headerGradient}>
         <View style={styles.headerContent}>
-          <View>
+          <View style={{ flex: 1 }}>
             <Text style={styles.greetingText}>Salam, {user?.name || 'Seller'}! 👋</Text>
-            <Text style={styles.subText}>Manage your store and track growth</Text>
+            <Text style={styles.subText}>{t('sellerWelcome')}</Text>
           </View>
-          <TouchableOpacity onPress={logout} style={styles.logoutBtn}>
-            <Ionicons name="log-out-outline" size={24} color="#2E8B57" />
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity onPress={toggleLanguage} style={styles.langButton}>
+              <Ionicons name="language" size={16} color="#2E8B57" />
+              <Text style={styles.langText}>{language === 'en' ? 'اردو' : 'Eng'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={logout} style={styles.logoutBtn}>
+              <Ionicons name="log-out-outline" size={24} color="#2E8B57" />
+            </TouchableOpacity>
+          </View>
         </View>
       </LinearGradient>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        
-        <Text style={styles.sectionTitle}>Store Performance</Text>
-        {/* FIXED: Changed from div to View */}
+
+        <Text style={styles.sectionTitle}>{t('storePerformance')}</Text>
         <View style={styles.statsContainer}>
           <View style={[styles.statBox, { borderLeftColor: '#4CAF50' }]}>
             {loadingStats ? <ActivityIndicator size="small" /> : <Text style={styles.statNumber}>{stats.totalProducts}</Text>}
-            <Text style={styles.statLabel}>Listings</Text>
+            <Text style={styles.statLabel}>{t('listings')}</Text>
           </View>
           <View style={[styles.statBox, { borderLeftColor: '#FFA726' }]}>
             {loadingStats ? <ActivityIndicator size="small" /> : <Text style={styles.statNumber}>{stats.activeOrders}</Text>}
-            <Text style={styles.statLabel}>Active Orders</Text>
+            <Text style={styles.statLabel}>{t('activeOrders')}</Text>
           </View>
           <View style={[styles.statBox, { borderLeftColor: '#2196F3' }]}>
             {loadingStats ? <ActivityIndicator size="small" /> : <Text style={styles.statNumber}>Rs. {stats.revenue.toLocaleString()}</Text>}
-            <Text style={styles.statLabel}>Total Earned</Text>
+            <Text style={styles.statLabel}>{t('totalEarned')}</Text>
           </View>
         </View>
 
-        <Text style={styles.sectionTitle}>Quick Actions</Text>
+        <Text style={styles.sectionTitle}>{t('quickActions')}</Text>
         <View style={styles.grid}>
           {menuItems.map((item, index) => (
             <TouchableOpacity
@@ -165,38 +122,40 @@ export default function SellerDashboard({ navigation }) {
               onPress={() => navigation.navigate(item.screen)}
               activeOpacity={0.8}
             >
-              <LinearGradient 
-                colors={item.colors} 
-                style={styles.cardGradient} 
-                start={{ x: 0, y: 0 }} 
+              <LinearGradient
+                colors={item.colors}
+                style={styles.cardGradient}
+                start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
               >
                 <View style={styles.iconCircle}>
                   <MaterialIcons name={item.icon} size={28} color={item.colors[1]} />
                 </View>
-                <Text style={styles.cardText}>{item.title}</Text>
+                <Text style={styles.cardText}>{t(item.key)}</Text>
               </LinearGradient>
             </TouchableOpacity>
           ))}
-          
+
           <TouchableOpacity
             style={styles.cardContainer}
             onPress={() => navigation.navigate('Profile')}
             activeOpacity={0.8}
           >
-            <LinearGradient 
-              colors={['#AB47BC', '#8E24AA']} 
+            <LinearGradient
+              colors={['#AB47BC', '#8E24AA']}
               style={styles.cardGradient}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
             >
               <View style={styles.iconCircle}>
                 <Ionicons name="person" size={28} color="#8E24AA" />
               </View>
-              <Text style={styles.cardText}>My Profile</Text>
+              <Text style={styles.cardText}>{t('myProfileCard')}</Text>
             </LinearGradient>
           </TouchableOpacity>
         </View>
-        <View style={{height: 20}} />
+
+        <View style={{ height: 20 }} />
       </ScrollView>
     </View>
   );
@@ -208,7 +167,10 @@ const styles = StyleSheet.create({
   headerContent: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   greetingText: { fontSize: 24, fontWeight: '800', color: '#fff', marginBottom: 5 },
   subText: { fontSize: 14, color: '#E8F5E9', opacity: 0.9 },
-  logoutBtn: { width: 45, height: 45, borderRadius: 22.5, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', elevation: 3 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  langButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', paddingVertical: 7, paddingHorizontal: 12, borderRadius: 20, elevation: 3 },
+  langText: { color: '#2E8B57', fontWeight: '700', marginLeft: 5, fontSize: 13 },
+  logoutBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', elevation: 3 },
   scrollContent: { padding: 20 },
   sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#333', marginBottom: 15, marginTop: 10 },
   statsContainer: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 25 },

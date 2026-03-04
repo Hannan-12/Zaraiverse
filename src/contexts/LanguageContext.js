@@ -1,10 +1,10 @@
-import React, { createContext, useState, useContext } from 'react';
+import { createContext, useState, useContext } from 'react';
 
 export const LanguageContext = createContext();
 
 export const translations = {
   en: {
-    // Dashboard
+    // ── Dashboard (Farmer) ──────────────────────────────────────────
     welcome: "Welcome to ZaraiVerse",
     dashboard: "Dashboard",
     myCrops: "My Crops",
@@ -26,7 +26,7 @@ export const translations = {
     chatbot: "AI Chatbot",
     manageSubtext: "Manage your farm efficiently",
 
-    // Common
+    // ── Common ──────────────────────────────────────────────────────
     save: "Save",
     cancel: "Cancel",
     delete: "Delete",
@@ -35,7 +35,7 @@ export const translations = {
     retry: "Retry",
     loading: "Loading...",
 
-    // MyCropsScreen
+    // ── MyCropsScreen ───────────────────────────────────────────────
     expertAdviceTitle: "Need Expert Advice?",
     expertAdviceSubtext: "Get a prescription for your crops.",
     askNow: "Ask Now",
@@ -43,7 +43,7 @@ export const translations = {
     statusLabel: "Status:",
     noCropsFound: "No crops found.",
 
-    // ProfileScreen
+    // ── ProfileScreen ───────────────────────────────────────────────
     myProfile: "My Profile",
     editProfile: "Edit Profile",
     editName: "Edit Name",
@@ -55,12 +55,12 @@ export const translations = {
     profileUpdateFailed: "Failed to update profile.",
     photoUpdateFailed: "Photo update failed.",
 
-    // WeatherForecastScreen
+    // ── WeatherForecastScreen ───────────────────────────────────────
     loadingWeather: "Loading Weather...",
     next5Days: "Next 5 Days (Tap for details)",
     today: "Today",
 
-    // AnalyticsScreen
+    // ── AnalyticsScreen ─────────────────────────────────────────────
     smartAnalytics: "Smart Analytics",
     analyticsSubtitle: "AI-driven insights for your farm",
     cropDistribution: "Crop Distribution",
@@ -69,7 +69,7 @@ export const translations = {
     allLooksGood: "All Looks Good",
     noActionsNeeded: "No specific actions needed today based on your current crop data.",
 
-    // TaskRemindersScreen
+    // ── TaskRemindersScreen ──────────────────────────────────────────
     myTasks: "My Tasks",
     stayOrganized: "Stay organized & productive",
     noTasksYet: "No Tasks Yet",
@@ -85,34 +85,34 @@ export const translations = {
     enterTaskTitle: "Please enter a task title.",
     couldNotSaveTask: "Could not save task.",
 
-    // CartScreen
+    // ── CartScreen ───────────────────────────────────────────────────
     cartEmpty: "Your cart is empty.",
     total: "Total:",
     proceedToPayment: "Proceed to Payment",
 
-    // OrdersScreen
+    // ── OrdersScreen ─────────────────────────────────────────────────
     noOrdersFound: "No orders found.",
     rentalCost: "Rental Cost",
     amount: "Amount",
     viewRentalStatus: "View Rental Status",
 
-    // MarketplaceScreen
+    // ── MarketplaceScreen ────────────────────────────────────────────
     searchMarketplace: "Search seeds, tools, fertilizers...",
     noProductsFound: "No products found.",
 
-    // MyFieldsScreen
+    // ── MyFieldsScreen ───────────────────────────────────────────────
     deleteField: "Delete Field",
     confirmDeleteField: "Are you sure? This cannot be undone.",
     noFieldsAdded: "No fields added yet.",
     noFieldsAddedText: "Add your plots of land to manage crops better.",
 
-    // MyQueriesScreen
+    // ── MyQueriesScreen ──────────────────────────────────────────────
     yourQuestion: "Your Question:",
     expertResponse: "Expert Response",
     waitingForExpert: "Waiting for an expert to review...",
     noQueriesYet: "No queries sent yet.",
 
-    // RequestPrescriptionScreen
+    // ── RequestPrescriptionScreen ────────────────────────────────────
     askAnExpert: "Ask an Expert",
     prescriptionSubtext: "Describe your crop issue and attach a photo for better advice.",
     cropNameLabel: "Crop Name",
@@ -132,7 +132,7 @@ export const translations = {
     requestSentSuccess: "Your request has been sent to an expert!",
     couldNotSendRequest: "Could not send request. Please try again.",
 
-    // AddCropScreen
+    // ── AddCropScreen ────────────────────────────────────────────────
     addNewCrop: "Add New Crop",
     cropNamePlaceholder: "e.g., Wheat, Corn, Rice",
     selectField: "Select Field",
@@ -146,9 +146,39 @@ export const translations = {
     cropNameRequired: "Please enter a name for your crop.",
     fieldRequired: "Please select a field for this crop.",
     couldNotSaveCrop: "Could not save crop.",
+
+    // ── Seller Dashboard ─────────────────────────────────────────────
+    sellerWelcome: "Manage your store and track growth",
+    storePerformance: "Store Performance",
+    listings: "Listings",
+    activeOrders: "Active Orders",
+    totalEarned: "Total Earned",
+    quickActions: "Quick Actions",
+    addProduct: "Add Product",
+    products: "Products",
+    shipments: "Shipments",
+    myProfileCard: "My Profile",
+
+    // ── Expert Dashboard ─────────────────────────────────────────────
+    expertWelcome: "Welcome Back,",
+    performanceStats: "Performance Stats",
+    solved: "Solved",
+    rating: "Rating",
+    respTime: "Resp. Time",
+    dashboardMenu: "Dashboard Menu",
+    pendingPrescriptions: "Pending Prescriptions",
+    reviewQueries: "Review queries",
+    chatWithFarmers: "Chat with Farmers",
+    realTimeHelp: "Real-time help",
+    manageProfile: "Manage Profile",
+    settings: "Settings",
+    online: "Online",
+    offline: "Offline",
+    busy: "Busy",
   },
+
   ur: {
-    // Dashboard
+    // ── Dashboard (Farmer) ──────────────────────────────────────────
     welcome: "زرعی ورس میں خوش آمدید",
     dashboard: "ڈیش بورڈ",
     myCrops: "میری فصلیں",
@@ -170,7 +200,7 @@ export const translations = {
     chatbot: "اے آئی چیٹ بوٹ",
     manageSubtext: "اپنے فارم کا مؤثر طریقے سے انتظام کریں",
 
-    // Common
+    // ── Common ──────────────────────────────────────────────────────
     save: "محفوظ کریں",
     cancel: "منسوخ",
     delete: "حذف کریں",
@@ -179,7 +209,7 @@ export const translations = {
     retry: "دوبارہ کوشش کریں",
     loading: "لوڈ ہو رہا ہے...",
 
-    // MyCropsScreen
+    // ── MyCropsScreen ───────────────────────────────────────────────
     expertAdviceTitle: "ماہر مشورہ چاہیے؟",
     expertAdviceSubtext: "اپنی فصلوں کے لیے نسخہ حاصل کریں۔",
     askNow: "ابھی پوچھیں",
@@ -187,7 +217,7 @@ export const translations = {
     statusLabel: "حالت:",
     noCropsFound: "کوئی فصل نہیں ملی۔",
 
-    // ProfileScreen
+    // ── ProfileScreen ───────────────────────────────────────────────
     myProfile: "میری پروفائل",
     editProfile: "پروفائل تبدیل کریں",
     editName: "نام تبدیل کریں",
@@ -199,12 +229,12 @@ export const translations = {
     profileUpdateFailed: "پروفائل اپڈیٹ ناکام ہوئی۔",
     photoUpdateFailed: "تصویر اپڈیٹ ناکام ہوئی۔",
 
-    // WeatherForecastScreen
+    // ── WeatherForecastScreen ───────────────────────────────────────
     loadingWeather: "موسم لوڈ ہو رہا ہے...",
     next5Days: "اگلے 5 دن (تفصیل کے لیے ٹیپ کریں)",
     today: "آج",
 
-    // AnalyticsScreen
+    // ── AnalyticsScreen ─────────────────────────────────────────────
     smartAnalytics: "ذہین تجزیہ",
     analyticsSubtitle: "آپ کے فارم کے لیے اے آئی بصیرت",
     cropDistribution: "فصل کی تقسیم",
@@ -213,7 +243,7 @@ export const translations = {
     allLooksGood: "سب ٹھیک ہے",
     noActionsNeeded: "آج کے فصل کے اعداد و شمار کے مطابق کوئی خاص عمل درکار نہیں۔",
 
-    // TaskRemindersScreen
+    // ── TaskRemindersScreen ──────────────────────────────────────────
     myTasks: "میرے کام",
     stayOrganized: "منظم اور پیداواری رہیں",
     noTasksYet: "ابھی کوئی کام نہیں",
@@ -229,34 +259,34 @@ export const translations = {
     enterTaskTitle: "کام کا عنوان درج کریں۔",
     couldNotSaveTask: "کام محفوظ نہیں ہو سکا۔",
 
-    // CartScreen
+    // ── CartScreen ───────────────────────────────────────────────────
     cartEmpty: "آپ کی ٹوکری خالی ہے۔",
     total: "مجموعی:",
     proceedToPayment: "ادائیگی کی طرف جائیں",
 
-    // OrdersScreen
+    // ── OrdersScreen ─────────────────────────────────────────────────
     noOrdersFound: "کوئی آرڈر نہیں ملا۔",
     rentalCost: "کرائے کی لاگت",
     amount: "رقم",
     viewRentalStatus: "کرائے کی حیثیت دیکھیں",
 
-    // MarketplaceScreen
+    // ── MarketplaceScreen ────────────────────────────────────────────
     searchMarketplace: "بیج، اوزار، کھاد تلاش کریں...",
     noProductsFound: "کوئی مصنوعات نہیں ملی۔",
 
-    // MyFieldsScreen
+    // ── MyFieldsScreen ───────────────────────────────────────────────
     deleteField: "کھیت حذف کریں",
     confirmDeleteField: "کیا آپ واقعی یہ کرنا چاہتے ہیں؟ اسے واپس نہیں کیا جا سکتا۔",
     noFieldsAdded: "ابھی کوئی کھیت شامل نہیں کیا گیا۔",
     noFieldsAddedText: "بہتر فصل انتظام کے لیے اپنی زمین کے پلاٹ شامل کریں۔",
 
-    // MyQueriesScreen
+    // ── MyQueriesScreen ──────────────────────────────────────────────
     yourQuestion: "آپ کا سوال:",
     expertResponse: "ماہر کا جواب",
     waitingForExpert: "ماہر کے جائزے کا انتظار ہے...",
     noQueriesYet: "ابھی کوئی سوال نہیں بھیجا گیا۔",
 
-    // RequestPrescriptionScreen
+    // ── RequestPrescriptionScreen ────────────────────────────────────
     askAnExpert: "ماہر سے پوچھیں",
     prescriptionSubtext: "بہتر مشورے کے لیے اپنی فصل کا مسئلہ بیان کریں اور تصویر لگائیں۔",
     cropNameLabel: "فصل کا نام",
@@ -276,7 +306,7 @@ export const translations = {
     requestSentSuccess: "آپ کی درخواست ماہر کو بھیج دی گئی ہے!",
     couldNotSendRequest: "درخواست نہیں بھیجی جا سکی۔ دوبارہ کوشش کریں۔",
 
-    // AddCropScreen
+    // ── AddCropScreen ────────────────────────────────────────────────
     addNewCrop: "نئی فصل شامل کریں",
     cropNamePlaceholder: "مثال: گندم، مکئی، چاول",
     selectField: "کھیت منتخب کریں",
@@ -290,6 +320,35 @@ export const translations = {
     cropNameRequired: "فصل کا نام درج کریں۔",
     fieldRequired: "اس فصل کے لیے کھیت منتخب کریں۔",
     couldNotSaveCrop: "فصل محفوظ نہیں ہو سکی۔",
+
+    // ── Seller Dashboard ─────────────────────────────────────────────
+    sellerWelcome: "اپنی دکان کا انتظام کریں اور ترقی دیکھیں",
+    storePerformance: "اسٹور کی کارکردگی",
+    listings: "فہرستیں",
+    activeOrders: "فعال آرڈرز",
+    totalEarned: "کل کمائی",
+    quickActions: "فوری اعمال",
+    addProduct: "مصنوع شامل کریں",
+    products: "مصنوعات",
+    shipments: "ترسیلات",
+    myProfileCard: "میری پروفائل",
+
+    // ── Expert Dashboard ─────────────────────────────────────────────
+    expertWelcome: "خوش آمدید،",
+    performanceStats: "کارکردگی کے اعداد و شمار",
+    solved: "حل شدہ",
+    rating: "درجہ بندی",
+    respTime: "جواب وقت",
+    dashboardMenu: "ڈیش بورڈ مینو",
+    pendingPrescriptions: "زیر التواء نسخے",
+    reviewQueries: "سوالات کا جائزہ",
+    chatWithFarmers: "کسانوں سے بات چیت",
+    realTimeHelp: "فوری مدد",
+    manageProfile: "پروفائل منظم کریں",
+    settings: "ترتیبات",
+    online: "آن لائن",
+    offline: "آف لائن",
+    busy: "مصروف",
   }
 };
 
@@ -297,7 +356,7 @@ export const LanguageProvider = ({ children }) => {
   const [language, setLanguage] = useState('en');
 
   const t = (key) => {
-    return translations[language][key] || key;
+    return translations[language][key] || translations['en'][key] || key;
   };
 
   return (

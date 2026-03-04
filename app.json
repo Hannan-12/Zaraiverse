@@ -35,6 +35,9 @@
     },
     "web": {
       "favicon": "./src/assets/ZaraiVerse.png"
-    }
+    },
+    "plugins": [
+      "@sentry/react-native"
+    ]
   }
 }
