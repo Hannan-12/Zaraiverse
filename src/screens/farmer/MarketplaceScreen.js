@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import {
   View,
   Text,
@@ -12,8 +12,10 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { db } from '../../services/firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { LanguageContext } from '../../contexts/LanguageContext';
 
 export default function MarketplaceScreen({ navigation }) {
+  const { t } = useContext(LanguageContext);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -79,7 +81,7 @@ export default function MarketplaceScreen({ navigation }) {
         <Ionicons name="search" size={20} color="#666" />
         <TextInput
           style={styles.searchInput}
-          placeholder="Search seeds, tools, fertilizers..."
+          placeholder={t('searchMarketplace')}
           value={search}
           onChangeText={handleSearch}
         />
@@ -93,7 +95,7 @@ export default function MarketplaceScreen({ navigation }) {
           keyExtractor={(item) => item.id}
           renderItem={renderProduct}
           contentContainerStyle={styles.list}
-          ListEmptyComponent={<Text style={styles.empty}>No products found.</Text>}
+          ListEmptyComponent={<Text style={styles.empty}>{t('noProductsFound')}</Text>}
         />
       )}
     </View>

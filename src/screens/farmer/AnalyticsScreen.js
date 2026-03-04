@@ -19,12 +19,14 @@ import { differenceInDays } from 'date-fns';
 import { db } from '../../services/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { AuthContext } from '../../contexts/AuthContext';
+import { LanguageContext } from '../../contexts/LanguageContext';
 import { fetchWeatherByCoords } from '../../api/weather';
 
 const screenWidth = Dimensions.get('window').width;
 
 export default function AnalyticsScreen({ navigation }) {
   const { user } = useContext(AuthContext);
+  const { t } = useContext(LanguageContext);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [insights, setInsights] = useState([]);
@@ -175,8 +177,8 @@ export default function AnalyticsScreen({ navigation }) {
 
     if (newInsights.length === 0) {
         newInsights.push({
-            title: "All Looks Good",
-            body: "No specific actions needed today based on your current crop data.",
+            title: t('allLooksGood'),
+            body: t('noActionsNeeded'),
             type: 'info'
         })
     }
@@ -218,8 +220,8 @@ export default function AnalyticsScreen({ navigation }) {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#2E8B57" />}
     >
       <View style={styles.headerContainer}>
-        <Text style={styles.header}>📊 Smart Analytics</Text>
-        <Text style={styles.subHeader}>AI-driven insights for your farm</Text>
+        <Text style={styles.header}>📊 {t('smartAnalytics')}</Text>
+        <Text style={styles.subHeader}>{t('analyticsSubtitle')}</Text>
       </View>
 
       {/* --- 1. Weather Alert Card (Dynamic) --- */}
@@ -240,7 +242,7 @@ export default function AnalyticsScreen({ navigation }) {
       {/* --- 2. Crop Performance Chart --- */}
       {cropStats.length > 0 ? (
         <View style={styles.chartCard}>
-          <Text style={styles.cardTitle}>Crop Distribution</Text>
+          <Text style={styles.cardTitle}>{t('cropDistribution')}</Text>
           <PieChart
             data={cropStats}
             width={screenWidth - 60}
@@ -256,12 +258,12 @@ export default function AnalyticsScreen({ navigation }) {
         </View>
       ) : (
         <View style={styles.emptyChart}>
-            <Text style={styles.emptyText}>Add crops to see distribution charts.</Text>
+            <Text style={styles.emptyText}>{t('addCropsForChart')}</Text>
         </View>
       )}
 
       {/* --- 3. Prescriptive Insights List --- */}
-      <Text style={styles.sectionHeader}>Actionable Insights</Text>
+      <Text style={styles.sectionHeader}>{t('actionableInsights')}</Text>
       
       {insights.map((item, index) => (
         <View key={index} style={styles.insightCard}>

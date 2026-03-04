@@ -11,11 +11,13 @@ import {
 import { db } from '../../services/firebase';
 import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import { AuthContext } from '../../contexts/AuthContext';
+import { LanguageContext } from '../../contexts/LanguageContext';
 import { format } from 'date-fns';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function MyQueriesScreen() {
   const { user } = useContext(AuthContext);
+  const { t } = useContext(LanguageContext);
   const [queries, setQueries] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -60,7 +62,7 @@ export default function MyQueriesScreen() {
 
         <Text style={styles.date}>{format(item.createdAt, 'MMM d, yyyy • h:mm a')}</Text>
         
-        <Text style={styles.label}>Your Question:</Text>
+        <Text style={styles.label}>{t('yourQuestion')}</Text>
         <Text style={styles.description}>{item.description}</Text>
 
         {item.image && (
@@ -72,14 +74,14 @@ export default function MyQueriesScreen() {
           <View style={styles.responseBox}>
             <View style={styles.expertHeader}>
               <Ionicons name="medkit" size={16} color="#2E8B57" />
-              <Text style={styles.expertTitle}>Expert Response</Text>
+              <Text style={styles.expertTitle}>{t('expertResponse')}</Text>
             </View>
             <Text style={styles.responseText}>{item.response}</Text>
           </View>
         ) : (
           <View style={styles.pendingBox}>
             <Ionicons name="time-outline" size={16} color="#777" />
-            <Text style={styles.pendingText}>Waiting for an expert to review...</Text>
+            <Text style={styles.pendingText}>{t('waitingForExpert')}</Text>
           </View>
         )}
       </View>
@@ -102,7 +104,7 @@ export default function MyQueriesScreen() {
         keyExtractor={item => item.id}
         contentContainerStyle={styles.list}
         ListEmptyComponent={
-          <Text style={styles.emptyText}>No queries sent yet.</Text>
+          <Text style={styles.emptyText}>{t('noQueriesYet')}</Text>
         }
       />
     </View>

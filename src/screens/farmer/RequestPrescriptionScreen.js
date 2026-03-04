@@ -16,11 +16,13 @@ import * as ImagePicker from 'expo-image-picker';
 import { db } from '../../services/firebase';
 import { collection, addDoc, Timestamp } from 'firebase/firestore';
 import { AuthContext } from '../../contexts/AuthContext';
+import { LanguageContext } from '../../contexts/LanguageContext';
 import axios from 'axios';
 import { GROQ_API_KEY, GROQ_BASE } from '../../config/keys';
 
 export default function RequestPrescriptionScreen({ navigation }) {
   const { user } = useContext(AuthContext);
+  const { t } = useContext(LanguageContext);
   
   const [cropName, setCropName] = useState('');
   const [description, setDescription] = useState('');
@@ -92,7 +94,7 @@ Your answer (VALID or INVALID):`;
       return (
         <View style={styles.validationBadge}>
           <ActivityIndicator size="small" color="#2E7D32" />
-          <Text style={styles.validatingText}>Validating image...</Text>
+          <Text style={styles.validatingText}>{t('validatingImage')}</Text>
         </View>
       );
     }
@@ -100,7 +102,7 @@ Your answer (VALID or INVALID):`;
       return (
         <View style={[styles.validationBadge, { backgroundColor: '#E8F5E9' }]}>
           <Ionicons name="checkmark-circle" size={18} color="#2E7D32" />
-          <Text style={[styles.validatingText, { color: '#2E7D32' }]}>Image looks good!</Text>
+          <Text style={[styles.validatingText, { color: '#2E7D32' }]}>{t('imageGood')}</Text>
         </View>
       );
     }
@@ -109,7 +111,7 @@ Your answer (VALID or INVALID):`;
         <View style={[styles.validationBadge, { backgroundColor: '#FFEBEE' }]}>
           <Ionicons name="close-circle" size={18} color="#E53935" />
           <Text style={[styles.validatingText, { color: '#E53935' }]}>
-            Please upload an image of your crop or the affected plant/area.
+            {t('invalidImageMsg')}
           </Text>
         </View>
       );
@@ -121,7 +123,7 @@ Your answer (VALID or INVALID):`;
   const handlePickImage = async () => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permissionResult.granted) {
-      Alert.alert("Permission Required", "Please allow access to photos.");
+      Alert.alert(t('permissionRequired'), t('allowPhotoAccess'));
       return;
     }
 
@@ -146,15 +148,12 @@ Your answer (VALID or INVALID):`;
   // --- Submit Request ---
   const handleSubmit = async () => {
     if (!cropName || !description) {
-      Alert.alert("Missing Details", "Please enter crop name and description.");
+      Alert.alert(t('missingDetails'), t('enterCropDetails'));
       return;
     }
 
     if (imageValid === false) {
-      Alert.alert(
-        'Invalid Image',
-        'The attached image does not appear to show a crop or plant issue. Please upload a relevant photo of your crop or the affected area.'
-      );
+      Alert.alert(t('invalidImage'), t('invalidImageBody'));
       return;
     }
 
@@ -173,11 +172,11 @@ Your answer (VALID or INVALID):`;
 
       await addDoc(collection(db, 'expert_requests'), requestData);
 
-      Alert.alert("Success", "Your request has been sent to an expert!");
+      Alert.alert(t('success'), t('requestSentSuccess'));
       navigation.goBack();
     } catch (error) {
       console.error("Error submitting request:", error);
-      Alert.alert("Error", "Could not send request. Please try again.");
+      Alert.alert(t('error'), t('couldNotSendRequest'));
     } finally {
       setLoading(false);
     }
@@ -185,13 +184,13 @@ Your answer (VALID or INVALID):`;
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.header}>Ask an Expert</Text>
+      <Text style={styles.header}>{t('askAnExpert')}</Text>
       <Text style={styles.subHeader}>
-        Describe your crop issue and attach a photo for better advice.
+        {t('prescriptionSubtext')}
       </Text>
 
       <View style={styles.formGroup}>
-        <Text style={styles.label}>Crop Name</Text>
+        <Text style={styles.label}>{t('cropNameLabel')}</Text>
         <TextInput 
           style={styles.input} 
           placeholder="e.g. Wheat, Rice, Cotton"
@@ -201,7 +200,7 @@ Your answer (VALID or INVALID):`;
       </View>
 
       <View style={styles.formGroup}>
-        <Text style={styles.label}>Problem Description</Text>
+        <Text style={styles.label}>{t('problemDescription')}</Text>
         <TextInput 
           style={[styles.input, styles.textArea]} 
           placeholder="Describe the symptoms (e.g. yellow leaves, pests)..."
@@ -213,14 +212,14 @@ Your answer (VALID or INVALID):`;
       </View>
 
       <View style={styles.formGroup}>
-        <Text style={styles.label}>Attachment (Optional)</Text>
+        <Text style={styles.label}>{t('attachment')}</Text>
         <TouchableOpacity style={styles.imagePicker} onPress={handlePickImage}>
           {imageUri ? (
             <Image source={{ uri: imageUri }} style={styles.previewImage} />
           ) : (
             <View style={styles.placeholder}>
               <Ionicons name="camera-outline" size={32} color="#666" />
-              <Text style={styles.placeholderText}>Tap to add photo</Text>
+              <Text style={styles.placeholderText}>{t('tapToAddPhoto')}</Text>
             </View>
           )}
         </TouchableOpacity>
@@ -235,7 +234,7 @@ Your answer (VALID or INVALID):`;
         {loading ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <Text style={styles.submitButtonText}>Submit Request</Text>
+          <Text style={styles.submitButtonText}>{t('submitRequest')}</Text>
         )}
       </TouchableOpacity>
     </ScrollView>

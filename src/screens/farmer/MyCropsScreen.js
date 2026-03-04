@@ -11,12 +11,14 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { db } from '../../services/firebase';
 import { AuthContext } from '../../contexts/AuthContext';
+import { LanguageContext } from '../../contexts/LanguageContext';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { format } from 'date-fns';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export default function MyCropsScreen({ navigation }) {
   const { user } = useContext(AuthContext);
+  const { t } = useContext(LanguageContext);
   const [crops, setCrops] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -90,12 +92,12 @@ export default function MyCropsScreen({ navigation }) {
           <View style={styles.dateRow}>
             <Ionicons name="calendar-outline" size={14} color="#777" />
             <Text style={styles.cropDate}>
-              Planted: {format(item.plantedDate, 'MMM d, yyyy')}
+              {t('planted')} {format(item.plantedDate, 'MMM d, yyyy')}
             </Text>
           </View>
           {/* Show Status explicitly for debugging */}
           <Text style={{fontSize: 12, color: '#2E8B57', marginTop: 2}}>
-            Status: {item.status}
+            {t('statusLabel')} {item.status}
           </Text>
         </View>
 
@@ -126,18 +128,18 @@ export default function MyCropsScreen({ navigation }) {
         style={styles.banner}
       >
         <View style={{flex: 1}}>
-          <Text style={styles.bannerTitle}>Need Expert Advice?</Text>
-          <Text style={styles.bannerText}>Get a prescription for your crops.</Text>
+          <Text style={styles.bannerTitle}>{t('expertAdviceTitle')}</Text>
+          <Text style={styles.bannerText}>{t('expertAdviceSubtext')}</Text>
         </View>
         <TouchableOpacity
           style={styles.bannerButton}
           onPress={() => navigation.navigate('RequestPrescription')}
         >
-          <Text style={styles.bannerButtonText}>Ask Now</Text>
+          <Text style={styles.bannerButtonText}>{t('askNow')}</Text>
         </TouchableOpacity>
       </LinearGradient>
 
-      <Text style={styles.sectionHeader}>My Crops ({crops.length})</Text>
+      <Text style={styles.sectionHeader}>{t('myCrops')} ({crops.length})</Text>
 
       <FlatList
         data={crops}
@@ -147,7 +149,7 @@ export default function MyCropsScreen({ navigation }) {
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Ionicons name="leaf-outline" size={60} color="#ccc" />
-            <Text style={styles.emptyText}>No crops found for this user.</Text>
+            <Text style={styles.emptyText}>{t('noCropsFound')}</Text>
             <Text style={{fontSize:12, color:'#999', textAlign:'center', marginTop:5}}>
               User ID: {user?.uid.slice(0,8)}...
             </Text>

@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useCart } from '../../contexts/CartContext';
+import { LanguageContext } from '../../contexts/LanguageContext';
 
 export default function CartScreen({ navigation }) {
   const { cartItems, updateQuantity, removeFromCart, getCartTotal } = useCart();
+  const { t } = useContext(LanguageContext);
 
   // --- CHANGED: Navigation instead of immediate checkout ---
   const goToPayment = () => {
@@ -43,7 +45,7 @@ export default function CartScreen({ navigation }) {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons name="cart-outline" size={60} color="#ccc" />
-            <Text style={styles.emptyText}>Your cart is empty.</Text>
+            <Text style={styles.emptyText}>{t('cartEmpty')}</Text>
           </View>
         }
       />
@@ -51,7 +53,7 @@ export default function CartScreen({ navigation }) {
       {cartItems.length > 0 && (
         <View style={styles.footer}>
           <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Total:</Text>
+            <Text style={styles.totalLabel}>{t('total')}</Text>
             <Text style={styles.totalAmount}>Rs. {getCartTotal()}</Text>
           </View>
           
@@ -59,7 +61,7 @@ export default function CartScreen({ navigation }) {
             style={styles.checkoutBtn} 
             onPress={goToPayment}
           >
-            <Text style={styles.checkoutText}>Proceed to Payment</Text>
+            <Text style={styles.checkoutText}>{t('proceedToPayment')}</Text>
             <Ionicons name="arrow-forward" size={20} color="#fff" style={{marginLeft: 10}}/>
           </TouchableOpacity>
         </View>

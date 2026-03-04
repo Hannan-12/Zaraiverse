@@ -8,12 +8,14 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { format } from 'date-fns';
 import { db } from '../../services/firebase';
 import { AuthContext } from '../../contexts/AuthContext';
+import { LanguageContext } from '../../contexts/LanguageContext';
 import { collection, addDoc, Timestamp, query, where, getDocs } from 'firebase/firestore';
 
 const healthOptions = ['Good', 'Moderate', 'Poor'];
 
 export default function AddCropScreen({ navigation }) {
   const { user } = useContext(AuthContext);
+  const { t } = useContext(LanguageContext);
   const [cropName, setCropName] = useState('');
   
   // --- Field Selection State ---
@@ -49,11 +51,11 @@ export default function AddCropScreen({ navigation }) {
 
   const handleSaveCrop = async () => {
     if (!cropName.trim()) {
-      Alert.alert('Missing Info', 'Please enter a name for your crop.');
+      Alert.alert(t('error'), t('cropNameRequired'));
       return;
     }
     if (!selectedField) {
-      Alert.alert('Missing Info', 'Please select a field for this crop.');
+      Alert.alert(t('error'), t('fieldRequired'));
       return;
     }
 
@@ -85,19 +87,19 @@ export default function AddCropScreen({ navigation }) {
 
     } catch (error) {
       setIsLoading(false);
-      Alert.alert("Error", "Could not save crop.");
+      Alert.alert(t('error'), t('couldNotSaveCrop'));
     }
   };
 
   return (
     <ScrollView style={styles.outerContainer} contentContainerStyle={styles.container}>
-      <Text style={styles.header}>🌱 Add New Crop</Text>
-      
+      <Text style={styles.header}>🌱 {t('addNewCrop')}</Text>
+
       <View style={styles.inputContainer}>
-        <Text style={styles.label}>Crop Name</Text>
+        <Text style={styles.label}>{t('cropNameLabel')}</Text>
         <TextInput
           style={styles.input}
-          placeholder="e.g., Wheat, Corn, Rice"
+          placeholder={t('cropNamePlaceholder')}
           value={cropName}
           onChangeText={setCropName}
         />
@@ -105,26 +107,26 @@ export default function AddCropScreen({ navigation }) {
 
       {/* --- Field Selection --- */}
       <View style={styles.inputContainer}>
-        <Text style={styles.label}>Select Field</Text>
-        <TouchableOpacity 
-          style={styles.selectorButton} 
+        <Text style={styles.label}>{t('selectField')}</Text>
+        <TouchableOpacity
+          style={styles.selectorButton}
           onPress={() => {
             if (fields.length === 0) {
-              Alert.alert("No Fields", "Please add a field first in the 'My Fields' section.");
+              Alert.alert(t('noFields'), t('addFieldFirst'));
             } else {
               setFieldModalVisible(true);
             }
           }}
         >
           <Text style={[styles.selectorText, !selectedField && { color: '#999' }]}>
-            {selectedField ? selectedField.name : "Tap to select a field..."}
+            {selectedField ? selectedField.name : t('tapToSelectField')}
           </Text>
           <Ionicons name="chevron-down" size={20} color="#666" />
         </TouchableOpacity>
       </View>
 
       <View style={styles.inputContainer}>
-        <Text style={styles.label}>Planted Date</Text>
+        <Text style={styles.label}>{t('plantedDate')}</Text>
         <TouchableOpacity style={styles.selectorButton} onPress={() => setShowPicker(true)}>
           <Ionicons name="calendar-outline" size={20} color="#2e7d32" style={{marginRight: 10}} />
           <Text style={styles.selectorText}>{format(date, 'MMMM d, yyyy')}</Text>
@@ -136,7 +138,7 @@ export default function AddCropScreen({ navigation }) {
       )}
 
       <View style={styles.inputContainer}>
-        <Text style={styles.label}>Initial Health</Text>
+        <Text style={styles.label}>{t('initialHealth')}</Text>
         <View style={styles.healthSelector}>
           {healthOptions.map((option) => (
             <TouchableOpacity
@@ -152,14 +154,14 @@ export default function AddCropScreen({ navigation }) {
       </View>
 
       <TouchableOpacity style={styles.saveButton} onPress={handleSaveCrop} disabled={isLoading}>
-        {isLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveButtonText}>Save Crop</Text>}
+        {isLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveButtonText}>{t('saveCrop')}</Text>}
       </TouchableOpacity>
 
       {/* Field Selection Modal */}
       <Modal visible={fieldModalVisible} transparent animationType="slide">
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Select a Field</Text>
+            <Text style={styles.modalTitle}>{t('selectAField')}</Text>
             <FlatList
               data={fields}
               keyExtractor={item => item.id}
@@ -177,7 +179,7 @@ export default function AddCropScreen({ navigation }) {
               )}
             />
             <TouchableOpacity style={styles.closeButton} onPress={() => setFieldModalVisible(false)}>
-              <Text style={styles.closeButtonText}>Cancel</Text>
+              <Text style={styles.closeButtonText}>{t('cancel')}</Text>
             </TouchableOpacity>
           </View>
         </View>
