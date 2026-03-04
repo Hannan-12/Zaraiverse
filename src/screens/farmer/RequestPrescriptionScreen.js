@@ -1,5 +1,5 @@
 // src/screens/farmer/RequestPrescriptionScreen.js
-import React, { useState, useContext } from 'react';
+import { useState, useContext } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,9 @@ import {
   ScrollView,
   Image,
   Alert,
-  ActivityIndicator
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -183,7 +185,8 @@ Your answer (VALID or INVALID):`;
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Text style={styles.header}>{t('askAnExpert')}</Text>
       <Text style={styles.subHeader}>
         {t('prescriptionSubtext')}
@@ -238,6 +241,7 @@ Your answer (VALID or INVALID):`;
         )}
       </TouchableOpacity>
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

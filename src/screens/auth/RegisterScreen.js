@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   View, Text, TextInput, StyleSheet, ScrollView, Image,
   TouchableOpacity, Alert, ActivityIndicator,
+  KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { createUserWithEmailAndPassword, deleteUser } from 'firebase/auth';
 import { auth, db } from '../../services/firebase';
@@ -95,6 +96,10 @@ export default function RegisterScreen({ navigation }) {
   };
 
   return (
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={{ flex: 1 }}
+    >
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
       <Image source={require('../../assets/ZaraiVerse.png')} style={styles.logo} />
       <Text style={styles.title}>Create Account</Text>
@@ -201,6 +206,7 @@ export default function RegisterScreen({ navigation }) {
         </Text>
       </TouchableOpacity>
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

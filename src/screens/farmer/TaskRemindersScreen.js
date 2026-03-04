@@ -12,6 +12,7 @@ import {
   Platform,
   ActivityIndicator,
   StatusBar,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -282,6 +283,7 @@ export default function TaskRemindersScreen() {
         </LinearGradient>
       </TouchableOpacity>
       <Modal animationType="fade" transparent={true} visible={isModalVisible} onRequestClose={() => setIsModalVisible(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalHeader}>{editingTask ? t('editTask') : t('newTask')}</Text>
@@ -315,6 +317,7 @@ export default function TaskRemindersScreen() {
             </View>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );

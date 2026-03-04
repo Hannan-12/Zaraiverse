@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   Alert, ActivityIndicator, ScrollView,
+  KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { db } from '../../services/firebase';
 import { collection, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
@@ -108,6 +109,7 @@ export default function ForgotPasswordScreen({ navigation }) {
   };
 
   return (
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
       <Text style={styles.title}>Password Recovery</Text>
 
@@ -225,6 +227,7 @@ export default function ForgotPasswordScreen({ navigation }) {
         </View>
       )}
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
