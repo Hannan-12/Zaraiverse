@@ -16,6 +16,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { AuthContext } from '../../contexts/AuthContext';
+import { LanguageContext } from '../../contexts/LanguageContext';
 import { db } from '../../services/firebase';
 import {
   collection,
@@ -58,6 +59,7 @@ export default function TaskRemindersScreen() {
   const [showTimePicker, setShowTimePicker] = useState(false);
 
   const { user } = useContext(AuthContext);
+  const { t } = useContext(LanguageContext);
 
   useEffect(() => {
     if (!user) {
@@ -156,7 +158,7 @@ export default function TaskRemindersScreen() {
 
   const handleSaveTask = async () => {
     if (!taskText.trim()) {
-      Alert.alert('Missing Title', 'Please enter a task title.');
+      Alert.alert(t('missingTitle'), t('enterTaskTitle'));
       return;
     }
     const taskData = {
@@ -181,15 +183,15 @@ export default function TaskRemindersScreen() {
       }
       setIsModalVisible(false);
     } catch (error) {
-      Alert.alert('Error', 'Could not save task.');
+      Alert.alert(t('error'), t('couldNotSaveTask'));
     }
   };
 
   const handleDeleteTask = (task) => {
-    Alert.alert('Delete Task', 'Remove this task?', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('deleteTask'), t('removeTaskConfirm'), [
+      { text: t('cancel'), style: 'cancel' },
       {
-        text: 'Delete',
+        text: t('delete'),
         style: 'destructive',
         onPress: async () => {
           await cancelNotification(task.notificationId);
@@ -255,8 +257,8 @@ export default function TaskRemindersScreen() {
       <StatusBar barStyle="light-content" />
       <LinearGradient colors={['#2E8B57', '#1B5E20']} style={styles.headerGradient}>
         <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>My Tasks</Text>
-          <Text style={styles.headerSubtitle}>Stay organized & productive</Text>
+          <Text style={styles.headerTitle}>{t('myTasks')}</Text>
+          <Text style={styles.headerSubtitle}>{t('stayOrganized')}</Text>
         </View>
       </LinearGradient>
       <FlatList
@@ -269,8 +271,8 @@ export default function TaskRemindersScreen() {
             <View style={styles.emptyIconCircle}>
               <Ionicons name="calendar-outline" size={50} color="#2E8B57" />
             </View>
-            <Text style={styles.emptyTitle}>No Tasks Yet</Text>
-            <Text style={styles.emptySubtitle}>Tap the + button to add a new reminder.</Text>
+            <Text style={styles.emptyTitle}>{t('noTasksYet')}</Text>
+            <Text style={styles.emptySubtitle}>{t('addReminderHint')}</Text>
           </View>
         }
       />
@@ -282,10 +284,10 @@ export default function TaskRemindersScreen() {
       <Modal animationType="fade" transparent={true} visible={isModalVisible} onRequestClose={() => setIsModalVisible(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalHeader}>{editingTask ? 'Edit Task' : 'New Task'}</Text>
-            <Text style={styles.inputLabel}>Task Title</Text>
+            <Text style={styles.modalHeader}>{editingTask ? t('editTask') : t('newTask')}</Text>
+            <Text style={styles.inputLabel}>{t('taskTitle')}</Text>
             <TextInput style={styles.input} placeholder="e.g., Water Wheat Field" value={taskText} onChangeText={setTaskText} placeholderTextColor="#999" />
-            <Text style={styles.inputLabel}>Due Time</Text>
+            <Text style={styles.inputLabel}>{t('dueTime')}</Text>
             <TouchableOpacity style={styles.dateButton} onPress={() => setShowTimePicker(true)}>
               <Ionicons name="calendar" size={20} color="#2E8B57" />
               <Text style={styles.dateButtonText}>{format(taskTime, 'MMM d, yyyy  •  h:mm a')}</Text>
@@ -303,11 +305,11 @@ export default function TaskRemindersScreen() {
             )}
             <View style={styles.modalButtons}>
               <TouchableOpacity style={styles.cancelBtn} onPress={() => setIsModalVisible(false)}>
-                <Text style={styles.cancelBtnText}>Cancel</Text>
+                <Text style={styles.cancelBtnText}>{t('cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={handleSaveTask}>
                 <LinearGradient colors={['#2E8B57', '#1B5E20']} style={styles.saveBtn}>
-                  <Text style={styles.saveBtnText}>Save Task</Text>
+                  <Text style={styles.saveBtnText}>{t('saveTask')}</Text>
                 </LinearGradient>
               </TouchableOpacity>
             </View>

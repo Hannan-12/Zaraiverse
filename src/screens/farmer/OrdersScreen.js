@@ -5,10 +5,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { db } from '../../services/firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { AuthContext } from '../../contexts/AuthContext';
+import { LanguageContext } from '../../contexts/LanguageContext';
 import { format } from 'date-fns';
 
 export default function OrdersScreen({ navigation }) {
   const { user } = useContext(AuthContext);
+  const { t } = useContext(LanguageContext);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -99,7 +101,7 @@ export default function OrdersScreen({ navigation }) {
           <View style={styles.divider} />
 
           <View style={styles.footerRow}>
-            <Text style={styles.totalLabel}>{isRental ? 'Rental Cost' : 'Amount'}</Text>
+            <Text style={styles.totalLabel}>{isRental ? t('rentalCost') : t('amount')}</Text>
             <Text style={styles.totalAmount}>Rs. {item.totalAmount || item.price}</Text>
           </View>
 
@@ -108,7 +110,7 @@ export default function OrdersScreen({ navigation }) {
               style={styles.payBtn}
               onPress={() => navigation.navigate('LeasePayment', { order: item })}
             >
-              <Text style={styles.payBtnText}>View Rental Status</Text>
+              <Text style={styles.payBtnText}>{t('viewRentalStatus')}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -125,7 +127,7 @@ export default function OrdersScreen({ navigation }) {
         renderItem={renderOrderItem}
         keyExtractor={item => item.id}
         contentContainerStyle={styles.list}
-        ListEmptyComponent={<Text style={styles.empty}>No orders found.</Text>}
+        ListEmptyComponent={<Text style={styles.empty}>{t('noOrdersFound')}</Text>}
       />
     </View>
   );

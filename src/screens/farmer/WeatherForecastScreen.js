@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import { fetchWeatherByCoords } from '../../api/weather';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
+import { LanguageContext } from '../../contexts/LanguageContext';
 
 // --- MODIFIED HELPER FUNCTION ---
 const processForecastData = (forecastList) => {
@@ -44,6 +45,7 @@ const processForecastData = (forecastList) => {
 };
 
 export default function WeatherForecastScreen({ navigation }) { // Added navigation prop
+  const { t } = useContext(LanguageContext);
   const [weatherData, setWeatherData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState(null);
@@ -86,7 +88,7 @@ export default function WeatherForecastScreen({ navigation }) { // Added navigat
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color="#4FC3F7" />
-        <Text style={styles.loadingText}>Loading Weather...</Text>
+        <Text style={styles.loadingText}>{t('loadingWeather')}</Text>
       </View>
     );
   }
@@ -97,7 +99,7 @@ export default function WeatherForecastScreen({ navigation }) { // Added navigat
         <Ionicons name="cloud-offline-outline" size={60} color="#EF5350" />
         <Text style={styles.errorText}>{errorMsg}</Text>
         <TouchableOpacity style={styles.retryButton} onPress={loadWeather}>
-          <Text style={styles.retryText}>Retry</Text>
+          <Text style={styles.retryText}>{t('retry')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -147,7 +149,7 @@ export default function WeatherForecastScreen({ navigation }) { // Added navigat
         </View>
 
         {/* --- Forecast Section --- */}
-        <Text style={styles.forecastHeader}>Next 5 Days (Tap for details)</Text>
+        <Text style={styles.forecastHeader}>{t('next5Days')}</Text>
         
         <View style={styles.forecastList}>
           {processedForecast.map((day, index) => {
@@ -160,7 +162,7 @@ export default function WeatherForecastScreen({ navigation }) { // Added navigat
                 onPress={() => navigation.navigate('WeatherDetail', { dayData: day })}
               >
                 <Text style={styles.dayName}>
-                  {index === 0 ? 'Today' : format(day.dateObj, 'EEEE')}
+                  {index === 0 ? t('today') : format(day.dateObj, 'EEEE')}
                 </Text>
                 
                 <View style={styles.forecastCenter}>

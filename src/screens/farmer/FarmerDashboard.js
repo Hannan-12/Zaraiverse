@@ -18,13 +18,13 @@ export default function FarmerDashboard({ navigation }) {
     // --- ✅ REVERTED: Keeps pointing to 'CropProgress' ---
     // The CropProgress screen will now handle fetching data automatically.
     { title: t('cropProgress'), icon: 'leaf', screen: 'CropProgress', colors: ['#66BB6A', '#43A047'] },
-    
-    { title: 'My Fields', icon: 'map', screen: 'MyFields', colors: ['#8D6E63', '#5D4037'] },
-    { title: 'Marketplace', icon: 'storefront', screen: 'Marketplace', colors: ['#FFA726', '#FB8C00'] },
+
+    { title: t('myFields'), icon: 'map', screen: 'MyFields', colors: ['#8D6E63', '#5D4037'] },
+    { title: t('marketplace'), icon: 'storefront', screen: 'Marketplace', colors: ['#FFA726', '#FB8C00'] },
     { title: t('cart'), icon: 'cart', screen: 'Cart', colors: ['#FF7043', '#E64A19'] },
     { title: t('reqPrescription'), icon: 'medkit', screen: 'RequestPrescription', colors: ['#42A5F5', '#1E88E5'] },
-    { title: 'My Queries', icon: 'chatbubbles', screen: 'MyQueries', colors: ['#5C6BC0', '#3949AB'] },
-    { title: 'AI Chatbot', icon: 'chatbox-ellipses', screen: 'Chatbot', colors: ['#EC407A', '#C2185B'] },
+    { title: t('myQueries'), icon: 'chatbubbles', screen: 'MyQueries', colors: ['#5C6BC0', '#3949AB'] },
+    { title: t('chatbot'), icon: 'chatbox-ellipses', screen: 'Chatbot', colors: ['#EC407A', '#C2185B'] },
     { title: t('weather'), icon: 'partly-sunny', screen: 'Weather', colors: ['#26C6DA', '#00ACC1'] },
     { title: t('knowledgeHub'), icon: 'book', screen: 'KnowledgeHub', colors: ['#AB47BC', '#8E24AA'] },
     { title: t('tasks'), icon: 'alarm', screen: 'TaskReminders', colors: ['#EF5350', '#E53935'] },
@@ -39,7 +39,7 @@ export default function FarmerDashboard({ navigation }) {
         <View style={styles.headerContent}>
           <View>
             <Text style={styles.greetingText}>Salam, {user?.displayName || 'Farmer'}! 👋</Text>
-            <Text style={styles.subText}>{language === 'en' ? 'Manage your farm efficiently' : 'اپنے فارم کا مؤثر طریقے سے انتظام کریں'}</Text>
+            <Text style={styles.subText}>{t('manageSubtext')}</Text>
           </View>
           <TouchableOpacity onPress={toggleLanguage} style={styles.langButton}>
             <Ionicons name="language" size={16} color="#2E8B57" />

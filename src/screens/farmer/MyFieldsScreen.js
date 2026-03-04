@@ -12,9 +12,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { db } from '../../services/firebase';
 import { collection, query, where, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
 import { AuthContext } from '../../contexts/AuthContext';
+import { LanguageContext } from '../../contexts/LanguageContext';
 
 export default function MyFieldsScreen({ navigation }) {
   const { user } = useContext(AuthContext);
+  const { t } = useContext(LanguageContext);
   const [fields, setFields] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -36,9 +38,9 @@ export default function MyFieldsScreen({ navigation }) {
   }, [user]);
 
   const handleDelete = (id) => {
-    Alert.alert("Delete Field", "Are you sure? This cannot be undone.", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Delete", style: "destructive", onPress: async () => {
+    Alert.alert(t('deleteField'), t('confirmDeleteField'), [
+      { text: t('cancel'), style: "cancel" },
+      { text: t('delete'), style: "destructive", onPress: async () => {
           await deleteDoc(doc(db, 'fields', id));
       }}
     ]);
@@ -75,8 +77,8 @@ export default function MyFieldsScreen({ navigation }) {
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Ionicons name="earth-outline" size={60} color="#ccc" />
-              <Text style={styles.emptyText}>No fields added yet.</Text>
-              <Text style={styles.emptySubText}>Add your plots of land to manage crops better.</Text>
+              <Text style={styles.emptyText}>{t('noFieldsAdded')}</Text>
+              <Text style={styles.emptySubText}>{t('noFieldsAddedText')}</Text>
             </View>
           }
         />

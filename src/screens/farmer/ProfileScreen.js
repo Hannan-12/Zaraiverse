@@ -1,6 +1,6 @@
 import React, { useContext, useState } from 'react';
-import { 
-  View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Alert, ActivityIndicator, TextInput 
+import {
+  View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Alert, ActivityIndicator, TextInput
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -8,22 +8,24 @@ import * as ImagePicker from 'expo-image-picker';
 import { db } from '../../services/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { AuthContext } from '../../contexts/AuthContext';
+import { LanguageContext } from '../../contexts/LanguageContext';
 
 export default function ProfileScreen({ navigation }) {
   const { user, logout } = useContext(AuthContext);
+  const { t } = useContext(LanguageContext);
   const [loading, setLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [newName, setNewName] = useState(user?.name || '');
 
   const handleUpdateName = async () => {
-    if (!newName.trim()) return Alert.alert("Error", "Name cannot be empty.");
+    if (!newName.trim()) return Alert.alert(t('error'), t('nameEmptyError'));
     setLoading(true);
     try {
       await updateDoc(doc(db, 'users', user.uid), { name: newName });
       setIsEditing(false);
-      Alert.alert("Success", "Name updated!");
+      Alert.alert(t('success'), t('nameUpdated'));
     } catch (e) {
-      Alert.alert("Error", "Failed to update profile.");
+      Alert.alert(t('error'), t('profileUpdateFailed'));
     } finally {
       setLoading(false);
     }
@@ -36,10 +38,10 @@ export default function ProfileScreen({ navigation }) {
     if (!result.canceled) {
       setLoading(true);
       try {
-        await updateDoc(doc(db, 'users', user.uid), { 
-          photoURL: `data:image/jpeg;base64,${result.assets[0].base64}` 
+        await updateDoc(doc(db, 'users', user.uid), {
+          photoURL: `data:image/jpeg;base64,${result.assets[0].base64}`
         });
-      } catch (e) { Alert.alert("Error", "Photo update failed."); }
+      } catch (e) { Alert.alert(t('error'), t('photoUpdateFailed')); }
       finally { setLoading(false); }
     }
   };
@@ -47,7 +49,7 @@ export default function ProfileScreen({ navigation }) {
   return (
     <ScrollView style={styles.container}>
       <LinearGradient colors={['#2E8B57', '#1B5E20']} style={styles.header}>
-        <Text style={styles.headerTitle}>My Profile</Text>
+        <Text style={styles.headerTitle}>{t('myProfile')}</Text>
       </LinearGradient>
 
       <View style={styles.profileCard}>
@@ -58,16 +60,16 @@ export default function ProfileScreen({ navigation }) {
         
         {isEditing ? (
           <View style={styles.editSection}>
-            <TextInput style={styles.input} value={newName} onChangeText={setNewName} placeholder="Edit Name" />
+            <TextInput style={styles.input} value={newName} onChangeText={setNewName} placeholder={t('editName')} />
             <TouchableOpacity onPress={handleUpdateName} style={styles.saveBtn}>
-              {loading ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{color: '#fff', fontWeight: 'bold'}}>Save</Text>}
+              {loading ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{color: '#fff', fontWeight: 'bold'}}>{t('save')}</Text>}
             </TouchableOpacity>
           </View>
         ) : (
           <>
             <Text style={styles.userName}>{user?.name || 'Zarai User'}</Text>
             <TouchableOpacity onPress={() => setIsEditing(true)}>
-              <Text style={styles.editLink}>Edit Profile</Text>
+              <Text style={styles.editLink}>{t('editProfile')}</Text>
             </TouchableOpacity>
           </>
         )}
@@ -77,12 +79,12 @@ export default function ProfileScreen({ navigation }) {
         <View style={styles.menuWrapper}>
           <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('HelpCenter')}>
             <Ionicons name="help-circle-outline" size={24} color="#333" />
-            <Text style={styles.menuText}>Help Center</Text>
+            <Text style={styles.menuText}>{t('helpCenter')}</Text>
             <Ionicons name="chevron-forward" size={18} color="#ccc" />
           </TouchableOpacity>
           <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('PrivacyPolicy')}>
             <Ionicons name="shield-checkmark-outline" size={24} color="#333" />
-            <Text style={styles.menuText}>Privacy Policy</Text>
+            <Text style={styles.menuText}>{t('privacyPolicy')}</Text>
             <Ionicons name="chevron-forward" size={18} color="#ccc" />
           </TouchableOpacity>
         </View>
@@ -90,7 +92,7 @@ export default function ProfileScreen({ navigation }) {
 
       <TouchableOpacity style={styles.logoutButton} onPress={logout}>
         <Ionicons name="log-out-outline" size={20} color="#EF5350" />
-        <Text style={styles.logoutText}>Log Out</Text>
+        <Text style={styles.logoutText}>{t('logOut')}</Text>
       </TouchableOpacity>
     </ScrollView>
   );
