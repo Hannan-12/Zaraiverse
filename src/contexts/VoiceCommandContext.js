@@ -2,6 +2,10 @@
  * Voice Command Context (FR-28 / M-06)
  * Provides voice command functionality across the app
  * Supports Urdu and English languages
+ *
+ * NOTE: Real speech-to-text requires @react-native-voice/voice (native module).
+ * Until that package is added, commands are processed via text input.
+ * Text-to-speech feedback works via expo-speech.
  */
 
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
@@ -18,76 +22,32 @@ import VoiceCommandService, {
 
 const VoiceCommandContext = createContext();
 
-// Simulated voice recognition for Expo (react-native-voice requires native modules)
-// In production, you would use @react-native-voice/voice with expo-dev-client
-const useSimulatedVoiceRecognition = () => {
-  const [isListening, setIsListening] = useState(false);
-  const [transcript, setTranscript] = useState('');
-  const [error, setError] = useState(null);
-
-  const startListening = useCallback(async () => {
-    setIsListening(true);
-    setTranscript('');
-    setError(null);
-    // In real implementation, this would start the native voice recognition
-    return true;
-  }, []);
-
-  const stopListening = useCallback(async () => {
-    setIsListening(false);
-    return transcript;
-  }, [transcript]);
-
-  const setRecognizedText = useCallback((text) => {
-    setTranscript(text);
-  }, []);
-
-  return {
-    isListening,
-    transcript,
-    error,
-    startListening,
-    stopListening,
-    setRecognizedText,
-    setError
-  };
-};
-
 export const VoiceCommandProvider = ({ children }) => {
   const navigation = useNavigation();
   const { language } = useLanguage();
   const { logout } = useAuth();
 
-  const [isEnabled, setIsEnabled] = useState(false);
+  const [isEnabled, setIsEnabled] = useState(true); // enabled by default
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [transcript, setTranscript] = useState('');
   const [lastCommand, setLastCommand] = useState(null);
   const [commandHistory, setCommandHistory] = useState([]);
   const [voiceFeedbackEnabled, setVoiceFeedbackEnabled] = useState(true);
 
-  const voiceRecognition = useSimulatedVoiceRecognition();
-  const commandQueueRef = useRef([]);
-
-  // Get language code for voice service
   const voiceLang = language === 'ur' ? 'ur' : 'en';
   const feedback = VOICE_FEEDBACK[voiceLang];
 
-  /**
-   * Provide voice feedback to user
-   */
   const provideFeedback = useCallback(async (message) => {
     if (voiceFeedbackEnabled) {
       await speak(message, voiceLang);
     }
   }, [voiceFeedbackEnabled, voiceLang]);
 
-  /**
-   * Execute a navigation action
-   */
   const executeNavigationAction = useCallback(async (screen) => {
     try {
       await provideFeedback(feedback.navigating(screen));
 
-      // Map screen names to actual navigation routes
       const screenRoutes = {
         'Dashboard': 'FarmerDashboard',
         'Marketplace': 'Marketplace',
@@ -108,7 +68,6 @@ export const VoiceCommandProvider = ({ children }) => {
 
       const route = screenRoutes[screen] || screen;
       navigation.navigate(route);
-
       return true;
     } catch (error) {
       console.error('Navigation error:', error);
@@ -116,9 +75,6 @@ export const VoiceCommandProvider = ({ children }) => {
     }
   }, [navigation, provideFeedback, feedback]);
 
-  /**
-   * Execute a general action
-   */
   const executeAction = useCallback(async (action) => {
     try {
       switch (action) {
@@ -126,10 +82,9 @@ export const VoiceCommandProvider = ({ children }) => {
           await provideFeedback('Going back');
           navigation.goBack();
           break;
-
         case 'logout':
           Alert.alert(
-            language === 'ur' ? 'Logout' : 'Logout',
+            'Logout',
             language === 'ur' ? 'Kya aap logout karna chahtay hain?' : 'Are you sure you want to logout?',
             [
               { text: language === 'ur' ? 'Nahi' : 'Cancel', style: 'cancel' },
@@ -143,38 +98,26 @@ export const VoiceCommandProvider = ({ children }) => {
             ]
           );
           break;
-
         case 'refresh':
           await provideFeedback('Refreshing');
-          // This would trigger a refresh in the current screen
-          // Implementation depends on screen-specific refresh logic
           break;
-
         case 'search':
           await provideFeedback('Opening search');
-          // Navigate to search or open search modal
           break;
-
         case 'addToCart':
           await provideFeedback('Adding to cart');
-          // This would be handled by the specific product screen
           break;
-
         case 'checkout':
           await provideFeedback('Going to checkout');
           navigation.navigate('Cart');
           break;
-
         case 'placeOrder':
           await provideFeedback('Processing order');
-          // This would trigger order placement in checkout screen
           break;
-
         default:
           await provideFeedback(feedback.notRecognized);
           return false;
       }
-
       return true;
     } catch (error) {
       console.error('Action execution error:', error);
@@ -183,22 +126,19 @@ export const VoiceCommandProvider = ({ children }) => {
     }
   }, [navigation, logout, language, provideFeedback, feedback]);
 
-  /**
-   * Process and execute a voice command
-   */
-  const handleVoiceCommand = useCallback(async (transcript) => {
-    if (!transcript || isProcessing) return;
+  const handleVoiceCommand = useCallback(async (inputText) => {
+    if (!inputText || !inputText.trim() || isProcessing) return;
 
     setIsProcessing(true);
-    await provideFeedback(feedback.processing);
+    const trimmed = inputText.trim();
+    setTranscript(trimmed);
 
     try {
-      const result = processVoiceCommand(transcript, voiceLang);
+      const result = processVoiceCommand(trimmed, voiceLang);
 
-      // Add to history
       const historyEntry = {
         id: Date.now(),
-        transcript,
+        transcript: trimmed,
         result,
         timestamp: new Date().toISOString()
       };
@@ -222,72 +162,42 @@ export const VoiceCommandProvider = ({ children }) => {
     }
   }, [isProcessing, voiceLang, provideFeedback, feedback, executeNavigationAction, executeAction]);
 
-  /**
-   * Start listening for voice commands
-   */
+  // Mic button: show alert that native STT is not available, guide user to type
   const startListening = useCallback(async () => {
-    if (!isEnabled) {
-      Alert.alert(
-        'Voice Commands',
-        'Voice commands are disabled. Enable them in settings.',
-        [{ text: 'OK' }]
-      );
-      return false;
-    }
+    if (!isEnabled) return false;
 
-    try {
-      await stopSpeaking();
-      await provideFeedback(feedback.listening);
-      const started = await voiceRecognition.startListening();
-      return started;
-    } catch (error) {
-      console.error('Error starting voice recognition:', error);
-      await provideFeedback(feedback.error);
-      return false;
-    }
-  }, [isEnabled, voiceRecognition, provideFeedback, feedback]);
+    Alert.alert(
+      language === 'ur' ? 'آواز سے کمانڈ' : 'Voice Input',
+      language === 'ur'
+        ? 'آواز پہچان فی الحال دستیاب نہیں۔ نیچے کمانڈ ٹائپ کریں۔\n\nمثال: "go to marketplace" یا "mere order"'
+        : 'Live microphone recognition is not available in this build.\n\nPlease type your command below.\n\nExample: "go to marketplace" or "my orders"',
+      [{ text: 'OK' }]
+    );
+    return false;
+  }, [isEnabled, language]);
 
-  /**
-   * Stop listening and process the command
-   */
   const stopListening = useCallback(async () => {
-    try {
-      const transcript = await voiceRecognition.stopListening();
-      if (transcript) {
-        await handleVoiceCommand(transcript);
-      }
-    } catch (error) {
-      console.error('Error stopping voice recognition:', error);
-    }
-  }, [voiceRecognition, handleVoiceCommand]);
+    setIsListening(false);
+  }, []);
 
-  /**
-   * Process text input as a voice command (for testing/accessibility)
-   */
   const processTextCommand = useCallback(async (text) => {
     await handleVoiceCommand(text);
   }, [handleVoiceCommand]);
 
-  /**
-   * Enable voice commands
-   */
+  const setRecognizedText = useCallback((text) => {
+    setTranscript(text);
+  }, []);
+
   const enableVoiceCommands = useCallback(async () => {
     setIsEnabled(true);
     await provideFeedback(feedback.welcome);
   }, [provideFeedback, feedback]);
 
-  /**
-   * Disable voice commands
-   */
   const disableVoiceCommands = useCallback(async () => {
     setIsEnabled(false);
     await stopSpeaking();
-    await provideFeedback(feedback.goodbye);
-  }, [provideFeedback, feedback]);
+  }, []);
 
-  /**
-   * Toggle voice commands
-   */
   const toggleVoiceCommands = useCallback(async () => {
     if (isEnabled) {
       await disableVoiceCommands();
@@ -296,32 +206,23 @@ export const VoiceCommandProvider = ({ children }) => {
     }
   }, [isEnabled, enableVoiceCommands, disableVoiceCommands]);
 
-  /**
-   * Clear command history
-   */
   const clearHistory = useCallback(() => {
     setCommandHistory([]);
     setLastCommand(null);
   }, []);
 
-  // Clean up on unmount
   useEffect(() => {
-    return () => {
-      stopSpeaking();
-    };
+    return () => { stopSpeaking(); };
   }, []);
 
   const value = {
-    // State
     isEnabled,
-    isListening: voiceRecognition.isListening,
+    isListening,
     isProcessing,
-    transcript: voiceRecognition.transcript,
+    transcript,
     lastCommand,
     commandHistory,
     voiceFeedbackEnabled,
-
-    // Actions
     startListening,
     stopListening,
     processTextCommand,
@@ -330,11 +231,7 @@ export const VoiceCommandProvider = ({ children }) => {
     toggleVoiceCommands,
     setVoiceFeedbackEnabled,
     clearHistory,
-
-    // For testing - set transcript directly
-    setRecognizedText: voiceRecognition.setRecognizedText,
-
-    // Utilities
+    setRecognizedText,
     speak,
     stopSpeaking,
     getAvailableCommands: () => VoiceCommandService.getAvailableCommands(voiceLang),

@@ -90,10 +90,6 @@ const VoiceCommandButton = ({ style, position = 'bottom-right' }) => {
   });
 
   const handlePress = () => {
-    if (!isEnabled) {
-      toggleVoiceCommands();
-      return;
-    }
     setShowModal(true);
   };
 
@@ -171,8 +167,8 @@ const VoiceCommandButton = ({ style, position = 'bottom-right' }) => {
         <TouchableOpacity
           style={[
             styles.button,
-            isEnabled ? styles.buttonEnabled : styles.buttonDisabled,
-            isListening && styles.buttonListening,
+            styles.buttonEnabled,
+            isProcessing && styles.buttonListening,
           ]}
           onPress={handlePress}
           onLongPress={handleLongPress}
@@ -180,15 +176,7 @@ const VoiceCommandButton = ({ style, position = 'bottom-right' }) => {
         >
           <Animated.View style={{ transform: [{ rotate: isProcessing ? spin : '0deg' }] }}>
             <Ionicons
-              name={
-                isProcessing
-                  ? 'sync'
-                  : isListening
-                  ? 'mic'
-                  : isEnabled
-                  ? 'mic-outline'
-                  : 'mic-off-outline'
-              }
+              name={isProcessing ? 'sync' : 'mic-outline'}
               size={28}
               color="#FFFFFF"
             />
@@ -216,27 +204,18 @@ const VoiceCommandButton = ({ style, position = 'bottom-right' }) => {
 
             {/* Microphone Button */}
             <TouchableOpacity
-              style={[
-                styles.micButton,
-                isListening && styles.micButtonListening
-              ]}
+              style={[styles.micButton, styles.micButtonDisabled]}
               onPress={handleMicPress}
             >
-              <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-                <Ionicons
-                  name={isListening ? 'mic' : 'mic-outline'}
-                  size={48}
-                  color="#FFFFFF"
-                />
-              </Animated.View>
+              <Ionicons name="mic-off-outline" size={48} color="#FFFFFF" />
             </TouchableOpacity>
 
             <Text style={styles.statusText}>
-              {isListening
-                ? (language === 'ur' ? 'سن رہا ہوں...' : 'Listening...')
-                : isProcessing
+              {isProcessing
                 ? (language === 'ur' ? 'پروسیسنگ...' : 'Processing...')
-                : (language === 'ur' ? 'مائیکروفون دبائیں' : 'Tap microphone to speak')}
+                : (language === 'ur'
+                    ? 'نیچے کمانڈ ٹائپ کریں'
+                    : 'Type your command below')}
             </Text>
 
             {/* Transcript Display */}
@@ -397,6 +376,10 @@ const styles = StyleSheet.create({
   micButtonListening: {
     backgroundColor: '#F44336',
     shadowColor: '#F44336',
+  },
+  micButtonDisabled: {
+    backgroundColor: '#9E9E9E',
+    shadowColor: '#9E9E9E',
   },
   statusText: {
     textAlign: 'center',
