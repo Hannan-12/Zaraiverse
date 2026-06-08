@@ -1,5 +1,11 @@
 import Constants from 'expo-constants';
 
-// Values are injected at build time via app.config.js extra (read from .env by Expo CLI)
-export const GROQ_API_KEY = Constants.expoConfig?.extra?.groqApiKey;
-export const GROQ_BASE = Constants.expoConfig?.extra?.groqBase ?? 'https://api.groq.com/openai/v1';
+// Primary: injected via app.config.js extra
+// Fallback: EXPO_PUBLIC_ vars are automatically available in the bundle
+export const GROQ_API_KEY =
+  Constants.expoConfig?.extra?.groqApiKey ||
+  process.env.EXPO_PUBLIC_GROQ_API_KEY;
+
+export const GROQ_BASE =
+  Constants.expoConfig?.extra?.groqBase ||
+  'https://api.groq.com/openai/v1';
